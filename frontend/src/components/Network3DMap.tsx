@@ -205,6 +205,7 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
     waterQuality: true,
     sewerLayer: true,
   })
+  const [isLayersCollapsed, setIsLayersCollapsed] = useState(false)
 
   // Timeline state (0.0 to 6.0 hours)
   const [timelineHour, setTimelineHour] = useState(6.0)
@@ -1075,92 +1076,123 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
       </div>
 
       {/* Floating HUD: Layer Filters Panel */}
-      <div className="map3d-hud map3d-hud--layers">
+      <div className={`map3d-hud map3d-hud--layers ${isLayersCollapsed ? 'map3d-hud--collapsed' : ''}`}>
         <div className="hud-glass-panel">
-          <div className="hud-panel-title">
+          <button
+            type="button"
+            className="hud-panel-title hud-panel-title--collapsible"
+            onClick={() => setIsLayersCollapsed((prev) => !prev)}
+            aria-expanded={!isLayersCollapsed}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              marginBottom: isLayersCollapsed ? 0 : 9,
+              color: 'inherit',
+              textAlign: 'left',
+            }}
+          >
             <span>NETWORK LAYERS</span>
-          </div>
-          <div className="layer-toggle-list">
-            <label className="layer-checkbox">
-              <input
-                type="checkbox"
-                checked={layerFilters.pipelines}
-                onChange={(e) => setLayerFilters((p) => ({ ...p, pipelines: e.target.checked }))}
-              />
-              <span className="layer-legend-bar" style={{ background: '#22c55e' }} />
-              <span>Pipelines</span>
-            </label>
+            <span
+              style={{
+                fontSize: '11px',
+                color: '#94a3b8',
+                transition: 'transform 0.2s ease',
+                transform: isLayersCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+              }}
+            >
+              ▾
+            </span>
+          </button>
 
-            <label className="layer-checkbox">
-              <input
-                type="checkbox"
-                checked={layerFilters.sensors}
-                onChange={(e) => setLayerFilters((p) => ({ ...p, sensors: e.target.checked }))}
-              />
-              <span className="layer-legend-dot" style={{ background: '#38bdf8' }} />
-              <span>Telemetry Sensors</span>
-            </label>
+          {!isLayersCollapsed && (
+            <div className="layer-toggle-list">
+              <label className="layer-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layerFilters.pipelines}
+                  onChange={(e) => setLayerFilters((p) => ({ ...p, pipelines: e.target.checked }))}
+                />
+                <span className="layer-legend-bar" style={{ background: '#22c55e' }} />
+                <span>Pipelines</span>
+              </label>
 
-            <label className="layer-checkbox">
-              <input
-                type="checkbox"
-                checked={layerFilters.junctions}
-                onChange={(e) => setLayerFilters((p) => ({ ...p, junctions: e.target.checked }))}
-              />
-              <span className="layer-legend-dot" style={{ background: '#64748b' }} />
-              <span>Junctions</span>
-            </label>
+              <label className="layer-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layerFilters.sensors}
+                  onChange={(e) => setLayerFilters((p) => ({ ...p, sensors: e.target.checked }))}
+                />
+                <span className="layer-legend-dot" style={{ background: '#38bdf8' }} />
+                <span>Telemetry Sensors</span>
+              </label>
 
-            <label className="layer-checkbox">
-              <input
-                type="checkbox"
-                checked={layerFilters.tanks}
-                onChange={(e) => setLayerFilters((p) => ({ ...p, tanks: e.target.checked }))}
-              />
-              <span className="layer-legend-dot" style={{ background: '#06b6d4' }} />
-              <span>Tanks & Reservoirs</span>
-            </label>
+              <label className="layer-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layerFilters.junctions}
+                  onChange={(e) => setLayerFilters((p) => ({ ...p, junctions: e.target.checked }))}
+                />
+                <span className="layer-legend-dot" style={{ background: '#64748b' }} />
+                <span>Junctions</span>
+              </label>
 
-            <label className="layer-checkbox">
-              <input
-                type="checkbox"
-                checked={layerFilters.leaks}
-                onChange={(e) => setLayerFilters((p) => ({ ...p, leaks: e.target.checked }))}
-              />
-              <span className="layer-legend-dot" style={{ background: '#ef4444' }} />
-              <span>Leaks & Suspects</span>
-            </label>
+              <label className="layer-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layerFilters.tanks}
+                  onChange={(e) => setLayerFilters((p) => ({ ...p, tanks: e.target.checked }))}
+                />
+                <span className="layer-legend-dot" style={{ background: '#06b6d4' }} />
+                <span>Tanks & Reservoirs</span>
+              </label>
 
-            <label className="layer-checkbox">
-              <input
-                type="checkbox"
-                checked={layerFilters.buildings}
-                onChange={(e) => setLayerFilters((p) => ({ ...p, buildings: e.target.checked }))}
-              />
-              <span className="layer-legend-dot" style={{ background: '#334155' }} />
-              <span>3D City Buildings</span>
-            </label>
+              <label className="layer-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layerFilters.leaks}
+                  onChange={(e) => setLayerFilters((p) => ({ ...p, leaks: e.target.checked }))}
+                />
+                <span className="layer-legend-dot" style={{ background: '#ef4444' }} />
+                <span>Leaks & Suspects</span>
+              </label>
 
-            <label className="layer-checkbox">
-              <input
-                type="checkbox"
-                checked={layerFilters.waterQuality}
-                onChange={(e) => setLayerFilters((p) => ({ ...p, waterQuality: e.target.checked }))}
-              />
-              <span className="layer-legend-dot" style={{ background: '#f59e0b' }} />
-              <span>🧪 Water Quality Layer</span>
-            </label>
+              <label className="layer-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layerFilters.buildings}
+                  onChange={(e) => setLayerFilters((p) => ({ ...p, buildings: e.target.checked }))}
+                />
+                <span className="layer-legend-dot" style={{ background: '#334155' }} />
+                <span>3D City Buildings</span>
+              </label>
 
-            <label className="layer-checkbox">
-              <input
-                type="checkbox"
-                checked={layerFilters.sewerLayer}
-                onChange={(e) => setLayerFilters((p) => ({ ...p, sewerLayer: e.target.checked }))}
-              />
-              <span className="layer-legend-bar" style={{ background: '#a855f7' }} />
-              <span>🌧️ Sewer & Drainage Layer</span>
-            </label>
-          </div>
+              <label className="layer-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layerFilters.waterQuality}
+                  onChange={(e) => setLayerFilters((p) => ({ ...p, waterQuality: e.target.checked }))}
+                />
+                <span className="layer-legend-dot" style={{ background: '#f59e0b' }} />
+                <span>Water Quality Layer</span>
+              </label>
+
+              <label className="layer-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layerFilters.sewerLayer}
+                  onChange={(e) => setLayerFilters((p) => ({ ...p, sewerLayer: e.target.checked }))}
+                />
+                <span className="layer-legend-bar" style={{ background: '#a855f7' }} />
+                <span>Sewer & Drainage Layer</span>
+              </label>
+            </div>
+          )}
         </div>
       </div>
 
