@@ -447,7 +447,7 @@ export const RadialNavigation: React.FC<RadialNavigationProps> = ({
         >
           {/* Typographic Brand Mark & Subtitle */}
           <div className="radial-hud-center-brand">
-            <span className="radial-hud-center-brand-logo">JALNETRA</span>
+            <span className="radial-hud-center-brand-logo">NirX</span>
             <span className="radial-hud-center-brand-sub">WATER INFRASTRUCTURE OPERATIONS</span>
           </div>
 
