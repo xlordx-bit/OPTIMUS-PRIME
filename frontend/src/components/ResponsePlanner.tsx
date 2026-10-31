@@ -60,12 +60,62 @@ export const ResponsePlanner: React.FC<ResponsePlannerProps> = ({
   const [isSimulating, setIsSimulating] = useState(false)
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null)
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="planner-loading-card">
         <div className="planner-spinner" />
         <h3>Computing Multi-Valve Cut Combinations...</h3>
         <p>Evaluating graph reachability, hydraulic pressure attenuation, and critical facility preservation.</p>
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="planner-loading-card" style={{ padding: '40px 24px', textAlign: 'center' }}>
+        <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚙️</div>
+        <h3>No Valve Isolation Plans Computed</h3>
+        <p style={{ maxWidth: '480px', margin: '0 auto 20px', color: '#A3BAC4' }}>
+          Execute the graph-theoretic valve cut engine to generate optimal isolation boundaries and preserve critical consumer facilities.
+        </p>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+          {onRefreshPlans && (
+            <button
+              type="button"
+              className="planner-action-btn primary"
+              onClick={() => onRefreshPlans()}
+              style={{
+                background: '#00E5C3',
+                color: '#07131C',
+                padding: '8px 18px',
+                borderRadius: '4px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                border: 'none',
+              }}
+            >
+              Generate Response Plans Now
+            </button>
+          )}
+          {onSwitchToMap && (
+            <button
+              type="button"
+              className="planner-action-btn secondary"
+              onClick={onSwitchToMap}
+              style={{
+                background: '#153541',
+                color: '#F4FAFC',
+                border: '1px solid #23414C',
+                padding: '8px 18px',
+                borderRadius: '4px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              View 3D Network Twin
+            </button>
+          )}
+        </div>
       </div>
     )
   }

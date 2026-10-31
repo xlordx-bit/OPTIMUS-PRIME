@@ -1,15 +1,50 @@
 :root {
-  font-family: Inter, "Segoe UI", Arial, sans-serif;
-  color: #d7e4e2;
-  background: #071116;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  color: #F4FAFC;
+  background: #07131C;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
 
-  --aqua: #56dccb;
-  --line: #203239;
-  --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  /* MIDNIGHT MARINE Theme System */
+  --bg-main: #07131C;
+  --bg-secondary: #0B1D28;
+  --bg-nav: #081923;
+
+  /* Card Surfaces */
+  --card-primary: #102733;
+  --card-secondary: #153541;
+  --surface-elevated: #1A414D;
+  --surface-hover: #204C59;
+
+  /* Borders */
+  --border-default: #23414C;
+  --border-active: #00BFA6;
+  --border-subtle: rgba(35, 65, 76, 0.7);
+
+  /* Accents */
+  --accent-aqua: #00E5C3;
+  --accent-blue: #398DFF;
+  --accent-purple: #A78BFA;
+  --accent-amber: #FFB547;
+
+  /* Status Colors */
+  --status-normal: #35D99A;
+  --status-warning: #FFB547;
+  --status-critical: #FF5364;
+  --status-info: #398DFF;
+
+  /* Text Hierarchy */
+  --text-primary: #F4FAFC;
+  --text-secondary: #A3BAC4;
+  --text-muted: #718B96;
+
+  /* Legacy & Utility Aliases */
+  --aqua: #00E5C3;
+  --line: #23414C;
+  --mono: "IBM Plex Mono", "SF Mono", Menlo, Monaco, Consolas, monospace;
 
   font-optical-sizing: auto;
   color-scheme: dark;
@@ -23,27 +58,36 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background: #07131C;
+  color: #F4FAFC;
+  font-family: inherit;
+  overflow-x: hidden;
 }
 
 button,
 input,
-select {
-  font: inherit;
+select,
+textarea {
+  font-family: inherit;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 button {
   border: 0;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 2px solid #70e3d2;
-  outline-offset: 3px;
+  outline: 2px solid #00E5C3;
+  outline-offset: 2px;
 }
 
 ::selection {
-  color: #071a19;
-  background: #71ddce;
+  color: #07131C;
+  background: #00E5C3;
 }
+

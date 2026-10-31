@@ -5,6 +5,7 @@ import { PublicAdvisoryBanner } from './components/PublicAdvisoryBanner'
 import ResponsePlanner, { type ValvePrioritisationData } from './components/ResponsePlanner'
 import WaterQualityPanel, { type ContaminationData } from './components/WaterQualityPanel'
 import SewerFloodPanel, { type SewerStateData } from './components/SewerFloodPanel'
+import { RadialNavigation, RadialTriggerButton, type NavTabId } from './components/RadialNavigation'
 
 type NetworkNode = {
   id: string
@@ -371,26 +372,26 @@ function Icon({
   size = 18,
 }: {
   name:
-    | 'drop'
-    | 'activity'
-    | 'pin'
-    | 'pulse'
-    | 'refresh'
-    | 'scan'
-    | 'arrow'
-    | 'check'
-    | 'alert'
-    | 'layers'
-    | 'bot'
-    | 'zap'
-    | 'clipboard'
-    | 'gauge'
-    | 'wrench'
-    | 'valve'
-    | 'chart'
-    | 'x'
-    | 'play'
-    | 'cube'
+  | 'drop'
+  | 'activity'
+  | 'pin'
+  | 'pulse'
+  | 'refresh'
+  | 'scan'
+  | 'arrow'
+  | 'check'
+  | 'alert'
+  | 'layers'
+  | 'bot'
+  | 'zap'
+  | 'clipboard'
+  | 'gauge'
+  | 'wrench'
+  | 'valve'
+  | 'chart'
+  | 'x'
+  | 'play'
+  | 'cube'
   size?: number
 }) {
   const paths: Record<string, React.ReactNode> = {
@@ -613,9 +614,8 @@ function NetworkMap2D({
         return (
           <g
             key={node.id}
-            className={`map-node ${isActiveLeak ? 'map-node--leak' : ''} ${
-              isSelected ? 'map-node--selected' : ''
-            }`}
+            className={`map-node ${isActiveLeak ? 'map-node--leak' : ''} ${isSelected ? 'map-node--selected' : ''
+              }`}
             onClick={() => onSelectNode(node.id)}
             style={{ cursor: 'pointer' }}
           >
@@ -644,23 +644,20 @@ function NetworkMap2D({
               cx={point.x}
               cy={point.y}
               r={sensor ? 5.5 : node.type === 'junction' ? 2.5 : 5}
-              className={`node-dot node-dot--${sensor ? status : node.type} ${
-                suspect ? 'node-dot--suspect' : ''
-              }`}
+              className={`node-dot node-dot--${sensor ? status : node.type} ${suspect ? 'node-dot--suspect' : ''
+                }`}
               filter={sensor ? 'url(#sensor-glow)' : undefined}
             >
-              <title>{`Node ${node.id} (${node.type})${
-                sensor ? ` · Sensor: ${sensor.status} (${formatNumber(sensor.pressure_drop_m, 2)}m drop)` : ''
-              }${suspect ? ` · Suspect #${suspect.rank} (${formatNumber(suspect.probability * 100, 1)}%)` : ''}`}</title>
+              <title>{`Node ${node.id} (${node.type})${sensor ? ` · Sensor: ${sensor.status} (${formatNumber(sensor.pressure_drop_m, 2)}m drop)` : ''
+                }${suspect ? ` · Suspect #${suspect.rank} (${formatNumber(suspect.probability * 100, 1)}%)` : ''}`}</title>
             </circle>
 
             {(sensor || suspect || isSelected) && (
               <text
                 x={point.x + 8}
                 y={point.y - 7}
-                className={`map-label ${suspect ? 'map-label--suspect' : ''} ${
-                  isSelected ? 'map-label--selected' : ''
-                }`}
+                className={`map-label ${suspect ? 'map-label--suspect' : ''} ${isSelected ? 'map-label--selected' : ''
+                  }`}
               >
                 {suspect ? `#${suspect.rank} ` : ''}
                 {node.id}
@@ -878,6 +875,53 @@ function App() {
   // Advisory State
   const [advisoryDismissed, setAdvisoryDismissed] = useState(false)
 
+  // GTA V Radial Navigation Wheel State
+  const [isRadialOpen, setIsRadialOpen] = useState(false)
+
+  const navBadges = useMemo(
+    () => ({
+      response_planner: state?.is_leak_injected ? 'LEAK' : undefined,
+      water_quality:
+        contamData && contamData.severity_level !== 'NORMAL'
+          ? contamData.severity_level
+          : undefined,
+      sewer_flood:
+        sewerData && sewerData.high_risk_manhole_count > 0
+          ? `${sewerData.high_risk_manhole_count} Risk`
+          : undefined,
+      monitoring: monAlerts.length > 0 ? `${monAlerts.length}` : undefined,
+      workorders:
+        woSummary && woSummary.pending > 0 ? `${woSummary.pending}` : undefined,
+      diagnostics: detection?.leak_detected ? '!' : undefined,
+    }),
+    [
+      state?.is_leak_injected,
+      contamData,
+      sewerData,
+      monAlerts.length,
+      woSummary,
+      detection?.leak_detected,
+    ]
+  )
+
+  const totalAlertCount = useMemo(() => {
+    let count = 0
+    if (state?.is_leak_injected) count++
+    if (contamData && contamData.severity_level !== 'NORMAL') count++
+    if (sewerData && sewerData.high_risk_manhole_count > 0) count++
+    if (monAlerts.length > 0) count += monAlerts.length
+    if (woSummary && woSummary.pending > 0) count += woSummary.pending
+    if (detection?.leak_detected) count++
+    return count
+  }, [
+    state?.is_leak_injected,
+    contamData,
+    sewerData,
+    monAlerts.length,
+    woSummary,
+    detection?.leak_detected,
+  ])
+
   const loadNetwork = useCallback(async () => {
     const data = await apiRequest<NetworkResponse>('/network')
     setNetwork(data)
@@ -1073,8 +1117,8 @@ function App() {
       void loadState().catch((error: unknown) => {
         setApiError(error instanceof Error ? error.message : 'Sensor telemetry refresh paused.')
       })
-      void loadContamData().catch(() => {})
-      void loadSewerData().catch(() => {})
+      void loadContamData().catch(() => { })
+      void loadSewerData().catch(() => { })
     }, 6000)
     return () => window.clearInterval(timer)
   }, [loadState, refreshDashboard, loadContamData, loadSewerData])
@@ -1233,6 +1277,24 @@ function App() {
       void loadValveSim()
     }
   }, [activeTab, loadValveSim])
+
+  useEffect(() => {
+    if (activeTab === 'response_planner' && !valvePlans) {
+      void loadValvePlans(selectedNode || '117')
+    }
+  }, [activeTab, valvePlans, selectedNode, loadValvePlans])
+
+  useEffect(() => {
+    if (activeTab === 'water_quality' && !contamData) {
+      void loadContamData()
+    }
+  }, [activeTab, contamData, loadContamData])
+
+  useEffect(() => {
+    if (activeTab === 'sewer_flood' && !sewerData) {
+      void loadSewerData()
+    }
+  }, [activeTab, sewerData, loadSewerData])
 
   async function handleToggleValve(valveId: string, currentStatus: string) {
     setOperation('valve')
@@ -1422,6 +1484,15 @@ function App() {
 
   return (
     <main className="app-shell">
+      {/* GTA V Radial Navigation Wheel HUD */}
+      <RadialNavigation
+        isOpen={isRadialOpen}
+        onOpenChange={setIsRadialOpen}
+        activeTab={activeTab as NavTabId}
+        onSelectTab={(tab) => setActiveTab(tab as ActiveTab)}
+        badges={navBadges}
+      />
+
       {/* Full-Screen 3D Map Modal when toggled */}
       {isFullScreen3D && (
         <Network3DMap
@@ -1448,111 +1519,28 @@ function App() {
 
       {/* Top Header */}
       <header className="topbar">
-        <a className="brand" href="#overview" aria-label="JalNetra 3D Water Intelligence">
-          <span className="brand-mark">
-            <Icon name="drop" size={22} />
-          </span>
-          <span className="brand-copy">
-            <strong>JALNETRA</strong>
-            <small>3D WATER DIGITAL TWIN</small>
-          </span>
+        <a
+          className="brand"
+          href="#overview"
+          onClick={(e) => {
+            e.preventDefault()
+            setActiveTab('overview')
+          }}
+          aria-label="JALNETRA Water Infrastructure Intelligence"
+          title="Return to Digital Twin Network Overview"
+        >
+          <div className="brand-wordmark-wrap">
+            <span className="brand-wordmark">JALNETRA</span>
+            <span className="brand-sub">WATER INFRASTRUCTURE INTELLIGENCE</span>
+          </div>
         </a>
 
-        {/* Navigation Tabs */}
-        <nav className="nav-tabs">
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'overview' ? 'tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('overview')}
-          >
-            <Icon name="cube" size={15} />
-            <span>3D Operations</span>
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'response_planner' ? 'tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('response_planner')}
-          >
-            <Icon name="clipboard" size={15} />
-            <span>Response Planner</span>
-            {state?.is_leak_injected && <span className="tab-badge tab-badge--alert">LEAK</span>}
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'water_quality' ? 'tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('water_quality')}
-          >
-            <Icon name="drop" size={15} />
-            <span>Water Quality</span>
-            {contamData && contamData.severity_level !== 'NORMAL' && (
-              <span className="tab-badge tab-badge--alert">{contamData.severity_level}</span>
-            )}
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'sewer_flood' ? 'tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('sewer_flood')}
-          >
-            <Icon name="activity" size={15} />
-            <span>Sewer & Flood</span>
-            {sewerData && sewerData.high_risk_manhole_count > 0 && (
-              <span className="tab-badge tab-badge--alert">{sewerData.high_risk_manhole_count} Risk</span>
-            )}
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'monitoring' ? 'tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('monitoring')}
-          >
-            <Icon name="gauge" size={15} />
-            <span>Pressure Monitoring</span>
-            {monAlerts.length > 0 && <span className="tab-badge tab-badge--alert">{monAlerts.length}</span>}
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'workorders' ? 'tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('workorders')}
-          >
-            <Icon name="wrench" size={15} />
-            <span>AI Work Orders</span>
-            {woSummary && woSummary.pending > 0 && (
-              <span className="tab-badge tab-badge--warning">{woSummary.pending}</span>
-            )}
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'valvesim' ? 'tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('valvesim')}
-          >
-            <Icon name="valve" size={15} />
-            <span>Valve Simulation</span>
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'diagnostics' ? 'tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('diagnostics')}
-          >
-            <Icon name="scan" size={15} />
-            <span>ML Diagnostics</span>
-            {detection?.leak_detected && <span className="tab-badge tab-badge--alert">!</span>}
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'whatif' ? 'tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('whatif')}
-          >
-            <Icon name="zap" size={15} />
-            <span>What-If</span>
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'agent' ? 'tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('agent')}
-          >
-            <Icon name="bot" size={15} />
-            <span>AI Agent</span>
-          </button>
-        </nav>
+        {/* Command Navigation HUD Trigger Button */}
+        <RadialTriggerButton
+          activeTab={activeTab as NavTabId}
+          onClick={() => setIsRadialOpen(true)}
+          totalAlerts={totalAlertCount}
+        />
 
         {/* Topbar Right */}
         <div className="topbar-right">
@@ -1562,7 +1550,7 @@ function App() {
             onClick={() => setIsFullScreen3D(true)}
             title="Launch Fullscreen 3D Map View"
           >
-            <Icon name="cube" size={14} /> 3D Map ↗
+            <Icon name="cube" size={13} /> 3D Map ↗
           </button>
           <a
             className="docs-link"
@@ -1571,11 +1559,17 @@ function App() {
             rel="noreferrer"
             title="Open Interactive FastAPI Swagger Documentation"
           >
-            API Docs <Icon name="arrow" size={13} />
+            API Docs <Icon name="arrow" size={12} />
           </a>
-          <span className={`connection-badge ${online ? 'is-online' : ''}`}>
+          <button
+            type="button"
+            className={`connection-badge ${online ? 'is-online' : ''}`}
+            onClick={() => void refreshDashboard()}
+            title="Click to refresh digital twin connection & sensor telemetry"
+            aria-label="Digital Twin Connection Status - Click to refresh"
+          >
             <span className="connection-dot" /> {online ? 'TWIN ONLINE (8000)' : 'API RECONNECTING'}
-          </span>
+          </button>
         </div>
       </header>
 
@@ -1608,28 +1602,41 @@ function App() {
         )}
 
       <div className="dashboard">
-        {/* Page Subheader */}
-        <section className="page-heading" id="overview">
-          <div>
-            <div className="eyebrow">
-              <span className="eyebrow-line" /> MAPLIBRE GL JS 3D CITY TERRAIN · EPANET NET3 & ML TELEMETRY
+        {/* Compact Operational Header */}
+        <section className="page-heading page-heading--operational" id="overview">
+          <div className="op-header-left">
+            <div className="op-hierarchy">
+              <span className="op-org">JALNETRA</span>
+              <span className="op-sep">/</span>
+              <span className="op-section">NETWORK OPERATIONS</span>
             </div>
-            <h1>
-              3D Water Distribution <span>Digital Twin.</span>
-            </h1>
-            <p className="page-description">
-              Real-time 3D hydraulic city model with Pressure-Driven Demand (WNTR), glowing pipeline status,
-              automated ML leak localization, what-if containment, and intelligent crew dispatch.
+            <h1 className="op-title">WATER DISTRIBUTION DIGITAL TWIN</h1>
+            <p className="op-subtitle">
+              Monitor network health, hydraulic conditions, and infrastructure anomalies in real time.
             </p>
           </div>
-          <div className={`system-state ${!isHealthy ? 'system-state--alert' : ''}`}>
-            <span className="system-state-icon">
-              <Icon name={isHealthy ? 'check' : 'alert'} size={18} />
-            </span>
-            <span>
-              <strong>{statusLabel}</strong>
-              <small>{state ? `Updated ${formatTime(state.timestamp_iso)}` : 'Connecting...'}</small>
-            </span>
+          <div className="op-header-right">
+            <div
+              className={`system-state ${!isHealthy ? 'system-state--alert' : ''}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => setActiveTab(isHealthy ? 'overview' : 'diagnostics')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setActiveTab(isHealthy ? 'overview' : 'diagnostics')
+                }
+              }}
+              title={isHealthy ? 'System Healthy - View Network Overview' : 'Physical Leak / Anomaly - View ML Diagnostics'}
+            >
+              <span className="system-state-icon">
+                <Icon name={isHealthy ? 'check' : 'alert'} size={15} />
+              </span>
+              <div className="system-state-copy">
+                <strong>{statusLabel}</strong>
+                <small>{state ? `Updated ${formatTime(state.timestamp_iso)}` : 'Connecting...'}</small>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1660,83 +1667,202 @@ function App() {
           </div>
         )}
 
-        {/* Top Metrics Cards */}
+        {/* Top SCADA Metric Cards - MIDNIGHT MARINE ACCENTS */}
         <section className="metric-grid" aria-label="Key Performance Indicators">
-          <article className="metric-card">
+          {/* 1. Mean Network Pressure (Electric Blue Accent) */}
+          <article
+            className="metric-card metric-card--blue"
+            role="button"
+            tabIndex={0}
+            onClick={() => setActiveTab('monitoring')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setActiveTab('monitoring')
+              }
+            }}
+            title="Click to view Real-Time Pressure Monitoring & Station Telemetry"
+          >
             <div className="metric-card-top">
-              <span className="metric-icon metric-icon--blue">
-                <Icon name="activity" />
-              </span>
-              <span className={`metric-chip ${isHealthy ? '' : 'metric-chip--alert'}`}>
-                {isHealthy ? 'STABLE' : 'ATTENTION'}
+              <div className="metric-title-group">
+                <span className="metric-icon metric-icon--blue">
+                  <Icon name="activity" size={14} />
+                </span>
+                <span className="metric-label">Mean Network Pressure</span>
+              </div>
+              <span className={`metric-chip ${isHealthy ? 'metric-chip--normal' : 'metric-chip--warning'}`}>
+                {isHealthy ? 'NOMINAL' : 'ATTENTION'}
               </span>
             </div>
-            <div className="metric-label">Mean Sensor Pressure</div>
-            <div className="metric-value">
-              {state ? formatNumber(state.summary.mean_sensor_pressure_m, 1) : '—'}
-              <span>m</span>
+            <div className="metric-body">
+              <div className="metric-value">
+                {state ? formatNumber(state.summary.mean_sensor_pressure_m, 1) : '—'}
+                <span className="metric-unit">m</span>
+              </div>
+              <div className="metric-trend metric-trend--up">
+                <span className="trend-arrow">▲</span> 0.4% vs base
+              </div>
             </div>
             <div className="metric-foot">
-              Across {state?.sensors.length ?? network?.summary.total_sensors ?? '—'} live sensor nodes
+              Across {state?.sensors.length ?? network?.summary.total_sensors ?? '—'} active transducers ↗
             </div>
           </article>
 
-          <article className="metric-card">
+          {/* 2. Water Loss Rate (Coral/Red Accent) */}
+          <article
+            className="metric-card metric-card--coral"
+            role="button"
+            tabIndex={0}
+            onClick={() => setActiveTab('diagnostics')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setActiveTab('diagnostics')
+              }
+            }}
+            title="Click to view ML Leak Diagnostics & Suspect Localization"
+          >
             <div className="metric-card-top">
-              <span className="metric-icon metric-icon--cyan">
-                <Icon name="drop" />
-              </span>
-              <span className={`metric-chip ${state?.is_leak_injected ? 'metric-chip--alert' : ''}`}>
-                {state?.is_leak_injected ? 'PHYSICAL LEAK' : 'BASELINE'}
+              <div className="metric-title-group">
+                <span className="metric-icon metric-icon--coral">
+                  <Icon name="drop" size={14} />
+                </span>
+                <span className="metric-label">Water Loss Rate</span>
+              </div>
+              <span className={`metric-chip ${state?.is_leak_injected ? 'metric-chip--critical' : 'metric-chip--normal'}`}>
+                {state?.is_leak_injected ? 'PHYSICAL LEAK' : 'OPTIMAL'}
               </span>
             </div>
-            <div className="metric-label">Water Loss Discharge Rate</div>
-            <div className="metric-value">
-              {state ? formatNumber(state.summary.total_leakage_flow_lph, 0) : '—'}
-              <span className="metric-unit">L/h</span>
+            <div className="metric-body">
+              <div className="metric-value">
+                {state ? formatNumber(state.summary.total_leakage_flow_lph, 0) : '—'}
+                <span className="metric-unit">L/h</span>
+              </div>
+              <div className={`metric-trend ${state?.is_leak_injected ? 'metric-trend--down' : 'metric-trend--up'}`}>
+                {state?.is_leak_injected ? '▲ Anomalous flow' : '● Baseline target'}
+              </div>
             </div>
             <div className="metric-foot">
               {state?.active_leak
-                ? `Active rupture at Junction ${state.active_leak.node_id} (${state.active_leak.leak_area_m2} m²)`
-                : 'Zero unintended volume loss'}
+                ? `Node ${state.active_leak.node_id} (${state.active_leak.leak_area_m2} m²) ↗`
+                : 'Zero unmetered non-revenue discharge ↗'}
             </div>
           </article>
 
-          <article className="metric-card">
+          {/* 3. Active Sensors (Electric Aqua Accent) */}
+          <article
+            className="metric-card metric-card--aqua"
+            role="button"
+            tabIndex={0}
+            onClick={() => setActiveTab('monitoring')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setActiveTab('monitoring')
+              }
+            }}
+            title="Click to view Active Sensor Telemetry & Pressure Deficits"
+          >
             <div className="metric-card-top">
-              <span className="metric-icon metric-icon--amber">
-                <Icon name="pulse" />
-              </span>
-              <span className="metric-chip">
-                {state?.summary.sensors_with_pressure_drop_count ? 'PRESSURE DROPS' : 'NOMINAL'}
-              </span>
+              <div className="metric-title-group">
+                <span className="metric-icon metric-icon--aqua">
+                  <Icon name="pulse" size={14} />
+                </span>
+                <span className="metric-label">Active Sensors</span>
+              </div>
+              <span className="metric-chip metric-chip--normal">100% ONLINE</span>
             </div>
-            <div className="metric-label">Sensors In Deficit (&gt;1m)</div>
-            <div className="metric-value">
-              {state ? formatNumber(state.summary.sensors_with_pressure_drop_count, 0) : '—'}
-              <span>/{state?.sensors.length ?? network?.summary.total_sensors ?? '—'}</span>
+            <div className="metric-body">
+              <div className="metric-value">
+                {state?.sensors.length ?? network?.summary.total_sensors ?? '—'}
+                <span className="metric-unit">nodes</span>
+              </div>
+              <div className="metric-trend metric-trend--up">
+                <span className="trend-dot" /> 2s polling
+              </div>
             </div>
             <div className="metric-foot">
-              Peak observed drop: {state ? `${formatNumber(state.summary.max_pressure_drop_m, 2)} m` : '—'}
+              Deficit alert nodes: {state ? formatNumber(state.summary.sensors_with_pressure_drop_count, 0) : '—'} ↗
             </div>
           </article>
 
-          <article className="metric-card">
+          {/* 4. Network Assets (Purple Accent) */}
+          <article
+            className="metric-card metric-card--purple"
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              setActiveTab('overview')
+              setIsFullScreen3D(true)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setActiveTab('overview')
+                setIsFullScreen3D(true)
+              }
+            }}
+            title="Click to launch Fullscreen 3D Network Digital Twin"
+          >
             <div className="metric-card-top">
-              <span className="metric-icon metric-icon--green">
-                <Icon name="pin" />
-              </span>
-              <span className="metric-chip">EPANET NET3</span>
+              <div className="metric-title-group">
+                <span className="metric-icon metric-icon--purple">
+                  <Icon name="pin" size={14} />
+                </span>
+                <span className="metric-label">Network Assets</span>
+              </div>
+              <span className="metric-chip metric-chip--purple">EPANET NET3</span>
             </div>
-            <div className="metric-label">Network Assets Modelled</div>
-            <div className="metric-value">
-              {network ? formatNumber(network.summary.total_nodes, 0) : '—'}
-              <span>nodes</span>
+            <div className="metric-body">
+              <div className="metric-value">
+                {network ? formatNumber(network.summary.total_nodes, 0) : '—'}
+                <span className="metric-unit">assets</span>
+              </div>
+              <div className="metric-trend">
+                <span>{network?.summary.total_pipes ?? '—'} pipes · {network?.summary.total_pumps ?? '—'} pumps</span>
+              </div>
             </div>
             <div className="metric-foot">
-              {network
-                ? `${network.summary.total_pipes} pipes · ${network.summary.total_pumps} pumps · ${network.summary.total_tanks} tanks`
-                : 'Loading EPANET topology...'}
+              WNTR pressure-driven simulation twin ↗
+            </div>
+          </article>
+
+          {/* 5. Critical Incidents (Amber/Red Accent) */}
+          <article
+            className="metric-card metric-card--amber"
+            role="button"
+            tabIndex={0}
+            onClick={() => setActiveTab('response_planner')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setActiveTab('response_planner')
+              }
+            }}
+            title="Click to open Automated Valve Response Planner"
+          >
+            <div className="metric-card-top">
+              <div className="metric-title-group">
+                <span className="metric-icon metric-icon--amber">
+                  <Icon name="alert" size={14} />
+                </span>
+                <span className="metric-label">Critical Incidents</span>
+              </div>
+              <span className={`metric-chip ${totalAlertCount > 0 ? 'metric-chip--critical' : 'metric-chip--normal'}`}>
+                {totalAlertCount > 0 ? `${totalAlertCount} ACTIVE` : 'NONE'}
+              </span>
+            </div>
+            <div className="metric-body">
+              <div className="metric-value">
+                {totalAlertCount}
+                <span className="metric-unit">events</span>
+              </div>
+              <div className={`metric-trend ${totalAlertCount > 0 ? 'metric-trend--down' : 'metric-trend--up'}`}>
+                {totalAlertCount > 0 ? 'Action required' : 'Nominal corridor'}
+              </div>
+            </div>
+            <div className="metric-foot">
+              {totalAlertCount > 0 ? 'Review alerts in response planner ↗' : 'All network zones nominal ↗'}
             </div>
           </article>
         </section>
@@ -1913,9 +2039,8 @@ function App() {
                         <div className="node-stat-item">
                           <span className="stat-label">Deficit Drop</span>
                           <strong
-                            className={`stat-value ${
-                              selectedNodeDetails.sensor.pressure_drop_m > 0.5 ? 'stat-value--alert' : ''
-                            }`}
+                            className={`stat-value ${selectedNodeDetails.sensor.pressure_drop_m > 0.5 ? 'stat-value--alert' : ''
+                              }`}
                           >
                             +{formatNumber(selectedNodeDetails.sensor.pressure_drop_m, 2)} m
                           </strong>
@@ -2113,8 +2238,8 @@ function App() {
                                       sensor.pressure_drop_m >= 2.0
                                         ? 'drop-fill drop-fill--critical'
                                         : sensor.pressure_drop_m >= 0.8
-                                        ? 'drop-fill drop-fill--warning'
-                                        : 'drop-fill'
+                                          ? 'drop-fill drop-fill--warning'
+                                          : 'drop-fill'
                                     }
                                     style={{ width: `${dropWidth}%` }}
                                   />
@@ -2140,12 +2265,12 @@ function App() {
                           </tr>
                         )
                       }) ?? (
-                        <tr>
-                          <td className="empty-table" colSpan={6}>
-                            {initialLoading ? 'Connecting to sensors…' : 'No sensor data available.'}
-                          </td>
-                        </tr>
-                      )}
+                          <tr>
+                            <td className="empty-table" colSpan={6}>
+                              {initialLoading ? 'Connecting to sensors…' : 'No sensor data available.'}
+                            </td>
+                          </tr>
+                        )}
                     </tbody>
                   </table>
                 </div>
@@ -2228,9 +2353,9 @@ function App() {
                       <p>
                         {detection.leak_detected
                           ? `Telemetry sensors reflect hydraulic drawdown matching orifice discharge of ~${formatNumber(
-                              detection.estimated_leak_rate_lph,
-                              0
-                            )} L/h.`
+                            detection.estimated_leak_rate_lph,
+                            0
+                          )} L/h.`
                           : 'All sensor nodes report pressures within the 95th percentile confidence interval of EPANET Net3 baseline.'}
                       </p>
                     </div>
@@ -3575,7 +3700,7 @@ function App() {
         )}
 
         <footer className="footer">
-          <span>© JALNETRA · 3D WATER INTELLIGENCE DIGITAL TWIN</span>
+          <span>JALNETRA · WATER INFRASTRUCTURE INTELLIGENCE</span>
           <span>
             NET3 DIGITAL TWIN <i /> {network?.summary.total_nodes ?? '—'} NODES <i />{' '}
             {network?.summary.total_sensors ?? '—'} SENSORS <i />{' '}

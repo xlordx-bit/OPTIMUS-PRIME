@@ -1,0 +1,513 @@
+/* ==========================================================================
+   JALNETRA MIDNIGHT MARINE COMMAND NAVIGATION WHEEL
+   Palette:
+   - Backgrounds: #07131C, #0B1D28, #081923
+   - Surfaces: #102733, #153541, #1A414D, #204C59
+   - Borders: #23414C, #00BFA6
+   - Accents: #00E5C3 (Electric Aqua), #398DFF (Electric Blue), #A78BFA (Purple), #FFB547 (Warm Amber)
+   - Status: #35D99A (Normal), #FFB547 (Warning), #FF5364 (Critical), #398DFF (Info)
+   - Text: #F4FAFC, #A3BAC4, #718B96
+   ========================================================================== */
+
+/* ── Fullscreen Overlay (Tactical Midnight Backdrop) ─────────────────────── */
+.radial-hud-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(7, 19, 28, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+
+.radial-hud-overlay--open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* ── Tactical Wheel HUD Container ────────────────────────────────────────── */
+.radial-hud-wheel-container {
+  position: relative;
+  width: 580px;
+  height: 580px;
+  max-width: 94vw;
+  max-height: 94vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(0.92);
+  opacity: 0;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.16s ease-out;
+  transform-origin: center center;
+}
+
+.radial-hud-overlay--open .radial-hud-wheel-container {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Subtle Restrained Ambient Focus (Deep Midnight Marine Lighting) */
+.radial-hud-ambient-glow {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center,
+      rgba(0, 229, 195, 0.08) 0%,
+      rgba(57, 141, 255, 0.04) 35%,
+      rgba(11, 29, 40, 0.45) 65%,
+      transparent 80%);
+  pointer-events: none;
+}
+
+/* ── Interactive Sectors SVG ────────────────────────────────────────────── */
+.radial-hud-sectors-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.radial-hud-sector-group {
+  transition: transform 0.15s cubic-bezier(0.2, 0.9, 0.3, 1.1),
+    filter 0.15s ease-out;
+  transform-origin: 340px 340px;
+  outline: none;
+}
+
+/* Precise Midnight Marine Sector Wedge (Sharp outlines, tactical density) */
+.radial-hud-sector-wedge {
+  fill: #102733;
+  stroke: #23414C;
+  stroke-width: 1.2px;
+  transition: fill 0.14s ease, stroke 0.14s ease, filter 0.14s ease;
+}
+
+.radial-hud-sector-group:hover .radial-hud-sector-wedge,
+.radial-hud-sector-group--highlighted .radial-hud-sector-wedge {
+  fill: #153541;
+  stroke: #00E5C3;
+  stroke-width: 1.8px;
+  filter: drop-shadow(0 0 10px rgba(0, 229, 195, 0.4));
+}
+
+.radial-hud-sector-group--current:not(.radial-hud-sector-group--highlighted) .radial-hud-sector-wedge {
+  fill: #122F3D;
+  stroke: #00BFA6;
+  stroke-width: 1.2px;
+}
+
+/* Sector Icon and Label in SVG foreignObject */
+.radial-hud-sector-content {
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  transition: transform 0.14s ease, color 0.14s ease;
+}
+
+.radial-hud-sector-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: #0B1D28;
+  border: 1px solid #23414C;
+  color: #A3BAC4;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: all 0.15s ease;
+}
+
+.radial-hud-sector-group--highlighted .radial-hud-sector-icon {
+  background: #153541;
+  border-color: #00E5C3;
+  color: #00E5C3;
+  box-shadow: 0 0 12px rgba(0, 229, 195, 0.45);
+  transform: scale(1.08);
+}
+
+.radial-hud-sector-group--current:not(.radial-hud-sector-group--highlighted) .radial-hud-sector-icon {
+  color: #00E5C3;
+  border-color: rgba(0, 229, 195, 0.5);
+  background: #102733;
+}
+
+.radial-hud-sector-label {
+  margin-top: 4px;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #A3BAC4;
+  white-space: nowrap;
+  transition: color 0.14s ease;
+}
+
+.radial-hud-sector-group--highlighted .radial-hud-sector-label {
+  color: #F4FAFC;
+  font-weight: 700;
+}
+
+/* Alert badge on sectors */
+.radial-hud-sector-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 8.5px;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  background: #FF5364;
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 83, 100, 0.7);
+  box-shadow: 0 0 8px rgba(255, 83, 100, 0.5);
+}
+
+.radial-hud-sector-badge--warning {
+  background: #FFB547;
+  border-color: rgba(255, 181, 71, 0.7);
+  box-shadow: 0 0 8px rgba(255, 181, 71, 0.5);
+}
+
+/* ── Tactical Center Information Hub ────────────────────────────────────── */
+.radial-hud-center-hub {
+  position: absolute;
+  width: 270px;
+  height: 270px;
+  border-radius: 50%;
+  background: #0B1D28;
+  border: 1.5px solid #23414C;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px 22px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 10;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.radial-hud-center-hub:hover {
+  border-color: #00E5C3;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 229, 195, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: scale(1.02);
+}
+
+/* Center Brand Header (Clean Typographic JALNETRA) */
+.radial-hud-center-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.radial-hud-center-brand-logo {
+  font-family: "IBM Plex Mono", Inter, monospace;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  color: #00E5C3;
+  text-transform: uppercase;
+}
+
+.radial-hud-center-brand-sub {
+  font-size: 7.5px;
+  font-family: Inter, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: #A3BAC4;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Dynamic Active Module Info */
+.radial-hud-active-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  animation: fadeInTactical 0.12s ease-out;
+}
+
+@keyframes fadeInTactical {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.radial-hud-active-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: rgba(0, 229, 195, 0.12);
+  border: 1px solid rgba(0, 229, 195, 0.35);
+  color: #00E5C3;
+  margin-bottom: 5px;
+}
+
+.radial-hud-active-pill--alert {
+  background: rgba(255, 83, 100, 0.15);
+  border-color: rgba(255, 83, 100, 0.5);
+  color: #FF5364;
+}
+
+.radial-hud-active-pill-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.radial-hud-active-title {
+  font-family: Inter, sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #F4FAFC;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.radial-hud-active-desc {
+  font-size: 9.5px;
+  line-height: 1.35;
+  color: #A3BAC4;
+  margin-top: 5px;
+  max-width: 210px;
+  max-height: 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+/* Center Tactical Instructions Footer */
+.radial-hud-instructions {
+  position: absolute;
+  bottom: 11px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 7.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: #718B96;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.radial-hud-instructions-dot {
+  color: #00E5C3;
+}
+
+/* ── Topbar Command Navigation Trigger Button ───────────────────────────── */
+.radial-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  background: #102733;
+  border: 1px solid #23414C;
+  border-radius: 4px;
+  color: #F4FAFC;
+  font-family: Inter, sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  position: relative;
+}
+
+.radial-trigger-btn:hover {
+  background: #153541;
+  border-color: #00E5C3;
+  color: #FFFFFF;
+}
+
+.radial-trigger-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00E5C3;
+}
+
+.radial-trigger-title {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #F4FAFC;
+}
+
+.radial-trigger-kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #0B1D28;
+  border: 1px solid #23414C;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  color: #00E5C3;
+}
+
+.radial-trigger-sep {
+  color: #718B96;
+  font-weight: 400;
+}
+
+.radial-trigger-current {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #A3BAC4;
+  text-transform: uppercase;
+}
+
+.radial-trigger-btn:hover .radial-trigger-current {
+  color: #00E5C3;
+}
+
+.radial-trigger-alert-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  background: #FF5364;
+  color: #FFFFFF;
+}
+
+/* Close Button (Tactical SCADA ESC) */
+.radial-hud-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  background: #102733;
+  border: 1px solid #23414C;
+  border-radius: 4px;
+  color: #A3BAC4;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.radial-hud-close-btn:hover {
+  background: #153541;
+  color: #F4FAFC;
+  border-color: #FF5364;
+}
+
+.radial-hud-close-btn kbd {
+  background: #0B1D28;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid #23414C;
+  font-size: 9px;
+  font-weight: 700;
+  color: #F4FAFC;
+}
+
+/* ── Motion & Responsive Media Queries ──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .radial-hud-overlay,
+  .radial-hud-wheel-container,
+  .radial-hud-sector-group,
+  .radial-hud-sector-wedge,
+  .radial-hud-sector-icon,
+  .radial-hud-sector-label {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .radial-hud-wheel-container {
+    width: 94vw;
+    height: 94vw;
+    max-width: 460px;
+    max-height: 460px;
+  }
+
+  .radial-hud-center-hub {
+    width: 190px;
+    height: 190px;
+    padding: 12px;
+  }
+
+  .radial-hud-center-brand-logo {
+    font-size: 12px;
+  }
+
+  .radial-hud-active-title {
+    font-size: 11px;
+  }
+
+  .radial-hud-active-desc {
+    display: none;
+  }
+
+  .radial-hud-sector-label {
+    font-size: 9px;
+  }
+
+  .radial-hud-sector-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .radial-hud-instructions {
+    display: none;
+  }
+}
