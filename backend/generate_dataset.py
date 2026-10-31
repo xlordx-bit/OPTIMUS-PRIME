@@ -84,6 +84,8 @@ def simulate_single_scenario(args: Tuple) -> Dict[str, Any]:
 
         if is_leak:
             node = wn.get_node(target_node)
+            if node is None:
+                raise ValueError(f"Leak target node {target_node!r} was not found in the network")
             # Add orifice leak: discharge coeff = 0.75, active from start
             node.add_leak(wn, area=leak_area, discharge_coeff=0.75, start_time=0)
 
@@ -92,11 +94,15 @@ def simulate_single_scenario(args: Tuple) -> Dict[str, Any]:
         results = sim.run_sim()
 
         # Extract pressures at sensors at evaluation timestamp
-        pressures = results.node['pressure'].loc[EVAL_TIME_STEP_SECONDS, sensor_list].to_dict()
+        node_results = results.node
+        if node_results is None:
+            raise RuntimeError("Simulation results do not contain node data")
+        pressures = node_results['pressure'].loc[EVAL_TIME_STEP_SECONDS, sensor_list].to_dict()
 
         # Extract actual leak flow in L/h (1 m^3/s = 3.6e6 L/h)
-        if is_leak and target_node in results.node.get('leak_demand', {}):
-            leak_demand_m3s = results.node['leak_demand'].loc[EVAL_TIME_STEP_SECONDS, target_node]
+        leak_demand = node_results.get('leak_demand')
+        if is_leak and target_node is not None and leak_demand is not None and target_node in leak_demand:
+            leak_demand_m3s = leak_demand.loc[EVAL_TIME_STEP_SECONDS, target_node]
             leak_flow_lph = float(leak_demand_m3s * 3.6e6)
         else:
             leak_flow_lph = 0.0
@@ -146,7 +152,14 @@ def compute_baseline_pressures(inp_file: str, sensor_list: List[str]) -> Dict[st
     sim = wntr.sim.WNTRSimulator(wn)
     results = sim.run_sim()
 
-    baseline_pressures = results.node['pressure'].loc[EVAL_TIME_STEP_SECONDS, sensor_list].to_dict()
+    node_results = results.node
+    if node_results is None:
+        raise RuntimeError("Baseline simulation results do not contain node data")
+    pressure_results = node_results['pressure']
+    baseline_pressures = {
+        sensor_id: float(pressure_results.loc[EVAL_TIME_STEP_SECONDS, sensor_id])
+        for sensor_id in sensor_list
+    }
     print("Baseline reference pressures at 12 sensors (meters):")
     for s_id, p in baseline_pressures.items():
         print(f"  Sensor [{s_id:>3}]: {p:.3f} m")
