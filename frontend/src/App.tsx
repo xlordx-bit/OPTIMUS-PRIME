@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import './App.css'
 import Network3DMap from './components/Network3DMap'
+import { PublicAdvisoryBanner } from './components/PublicAdvisoryBanner'
+import ResponsePlanner, { type ValvePrioritisationData } from './components/ResponsePlanner'
+import WaterQualityPanel, { type ContaminationData } from './components/WaterQualityPanel'
+import SewerFloodPanel, { type SewerStateData } from './components/SewerFloodPanel'
 
 type NetworkNode = {
   id: string
@@ -120,8 +124,35 @@ type AgentResponse = {
   suggested_actions: string[]
 }
 
-type Operation = 'inject' | 'reset' | 'detect' | 'whatif' | 'agent' | 'wo_update' | 'valve' | 'sim_run' | 'sim_reset' | null
-type ActiveTab = 'overview' | 'diagnostics' | 'whatif' | 'agent' | 'monitoring' | 'workorders' | 'valvesim'
+type Operation =
+  | 'inject'
+  | 'reset'
+  | 'detect'
+  | 'whatif'
+  | 'agent'
+  | 'wo_update'
+  | 'valve'
+  | 'sim_run'
+  | 'sim_reset'
+  | 'apply_valve_plan'
+  | 'inject_contam'
+  | 'reset_contam'
+  | 'sim_rain'
+  | 'reset_sewer'
+  | null
+
+type ActiveTab =
+  | 'overview'
+  | 'diagnostics'
+  | 'whatif'
+  | 'agent'
+  | 'monitoring'
+  | 'workorders'
+  | 'valvesim'
+  | 'response_planner'
+  | 'water_quality'
+  | 'sewer_flood'
+
 type MapViewMode = '3d' | '2d'
 
 // ── Monitoring Types ──────────────────────────────────────────────────────────
@@ -832,6 +863,21 @@ function App() {
   const [selectedValve, setSelectedValve] = useState<string | null>(null)
   const [simLoading, setSimLoading] = useState(false)
 
+  // Valve Prioritisation (Response Planner) State
+  const [valvePlans, setValvePlans] = useState<ValvePrioritisationData | null>(null)
+  const [vpLoading, setVpLoading] = useState(false)
+
+  // Water Quality & Contamination State
+  const [contamData, setContamData] = useState<ContaminationData | null>(null)
+  const [contamLoading, setContamLoading] = useState(false)
+
+  // Sewer & Flood Warning State
+  const [sewerData, setSewerData] = useState<SewerStateData | null>(null)
+  const [sewerLoading, setSewerLoading] = useState(false)
+
+  // Advisory State
+  const [advisoryDismissed, setAdvisoryDismissed] = useState(false)
+
   const loadNetwork = useCallback(async () => {
     const data = await apiRequest<NetworkResponse>('/network')
     setNetwork(data)
@@ -848,16 +894,178 @@ function App() {
     setApiError(null)
   }, [])
 
+  // --- Valve-Cut Prioritisation Handlers ---
+  const loadValvePlans = useCallback(async (nodeId?: string) => {
+    setVpLoading(true)
+    try {
+      const target = nodeId || selectedNode || '117'
+      const data = await apiRequest<ValvePrioritisationData>(`/valves/prioritise?node_id=${target}`)
+      setValvePlans(data)
+    } catch (err) {
+      console.warn('Valve prioritisation fetch skipped or failed:', err)
+    } finally {
+      setVpLoading(false)
+    }
+  }, [selectedNode])
+
+  const handleApplyValvePlan = useCallback(async (valves: string[]) => {
+    setOperation('apply_valve_plan')
+    setApiError(null)
+    setNotice(null)
+    try {
+      const result = await apiRequest<{ message: string; closed_valves: string[]; isolated_pipes: string[]; summary: string }>(
+        '/valves/apply-plan',
+        {
+          method: 'POST',
+          body: JSON.stringify({ valves, reason: 'Applied via NirX Response Planner' }),
+        }
+      )
+      setNotice(`Isolation Plan Executed: Closed ${result.closed_valves.join(', ')}. ${result.summary}`)
+      await Promise.all([loadState(), loadValvePlans(selectedNode)])
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Failed to apply valve isolation plan')
+    } finally {
+      setOperation(null)
+    }
+  }, [loadState, loadValvePlans, selectedNode])
+
+  // --- Contamination Handlers ---
+  const loadContamData = useCallback(async () => {
+    setContamLoading(true)
+    try {
+      const data = await apiRequest<ContaminationData>('/contamination/status')
+      setContamData(data)
+      if (data.public_advisory && data.public_advisory.is_active) {
+        setAdvisoryDismissed(false)
+      }
+    } catch (err) {
+      console.warn('Contamination status fetch failed:', err)
+    } finally {
+      setContamLoading(false)
+    }
+  }, [])
+
+  const handleInjectContamination = useCallback(async (payload: {
+    node_id: string
+    severity: string
+    cl_drop: number
+    turb_rise: number
+    ph_shift: number
+  }) => {
+    setOperation('inject_contam')
+    setApiError(null)
+    setNotice(null)
+    try {
+      const res = await apiRequest<{ message: string; status: ContaminationData }>('/contamination/inject', {
+        method: 'POST',
+        body: JSON.stringify({
+          node_id: payload.node_id,
+          chlorine_drop: payload.cl_drop,
+          turbidity_rise: payload.turb_rise,
+          scenario_type: payload.severity || 'CONTAMINATION',
+        }),
+      })
+      setContamData(res.status)
+      setAdvisoryDismissed(false)
+      setNotice(`Contamination telemetry injected at Junction ${payload.node_id}. Layer 1 & 2 anomaly engines triggered.`)
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Contamination injection failed')
+    } finally {
+      setOperation(null)
+    }
+  }, [])
+
+  const handleResetContamination = useCallback(async () => {
+    setOperation('reset_contam')
+    setApiError(null)
+    setNotice(null)
+    try {
+      const res = await apiRequest<{ message: string; status: ContaminationData }>('/contamination/reset', {
+        method: 'POST',
+      })
+      setContamData(res.status)
+      setNotice('Water quality sensors returned to clean potable baseline state.')
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Contamination reset failed')
+    } finally {
+      setOperation(null)
+    }
+  }, [])
+
+  // --- Sewer Overflow & Flood Handlers ---
+  const loadSewerData = useCallback(async () => {
+    setSewerLoading(true)
+    try {
+      const data = await apiRequest<SewerStateData>('/sewer/state')
+      setSewerData(data)
+    } catch (err) {
+      console.warn('Sewer status fetch failed:', err)
+    } finally {
+      setSewerLoading(false)
+    }
+  }, [])
+
+  const handleSimulateRain = useCallback(async (payload: {
+    intensity_level: string
+    block_drain_d7: boolean
+    pump_sp2_offline: boolean
+  }) => {
+    setOperation('sim_rain')
+    setApiError(null)
+    setNotice(null)
+    const rateMap: Record<string, number> = {
+      LIGHT: 15.0,
+      MODERATE: 28.0,
+      HEAVY: 48.0,
+      EXTREME: 75.0,
+    }
+    const rainRate = rateMap[payload.intensity_level] ?? 45.0
+    try {
+      const res = await apiRequest<{ message: string; status: SewerStateData }>('/sewer/simulate-rain', {
+        method: 'POST',
+        body: JSON.stringify({
+          rainfall_rate_mm_h: rainRate,
+          forecast_factor: 1.25,
+          block_drain_d7: payload.block_drain_d7,
+          pump_sp2_offline: payload.pump_sp2_offline,
+        }),
+      })
+      setSewerData(res.status)
+      setNotice(`Storm simulation executed: ${rainRate} mm/h (${payload.intensity_level}) rainfall propagated across drainage catchments.`)
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Storm simulation failed')
+    } finally {
+      setOperation(null)
+    }
+  }, [])
+
+  const handleResetSewer = useCallback(async () => {
+    setOperation('reset_sewer')
+    setApiError(null)
+    setNotice(null)
+    try {
+      const res = await apiRequest<{ message: string; status: SewerStateData }>('/sewer/reset', {
+        method: 'POST',
+      })
+      setSewerData(res.status)
+      setNotice('Sanitation and stormwater network reset to dry-weather baseline.')
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Sewer reset failed')
+    } finally {
+      setOperation(null)
+    }
+  }, [])
+
   const refreshDashboard = useCallback(async () => {
     setApiError(null)
     try {
-      await Promise.all([loadNetwork(), loadState()])
+      await Promise.all([loadNetwork(), loadState(), loadValvePlans(), loadContamData(), loadSewerData()])
     } catch (error) {
       setApiError(error instanceof Error ? error.message : 'Could not connect to backend.')
     } finally {
       setInitialLoading(false)
     }
-  }, [loadNetwork, loadState])
+  }, [loadNetwork, loadState, loadValvePlans, loadContamData, loadSewerData])
 
   useEffect(() => {
     void refreshDashboard()
@@ -865,9 +1073,11 @@ function App() {
       void loadState().catch((error: unknown) => {
         setApiError(error instanceof Error ? error.message : 'Sensor telemetry refresh paused.')
       })
+      void loadContamData().catch(() => {})
+      void loadSewerData().catch(() => {})
     }, 6000)
     return () => window.clearInterval(timer)
-  }, [loadState, refreshDashboard])
+  }, [loadState, refreshDashboard, loadContamData, loadSewerData])
 
   const junctions = useMemo(
     () => network?.nodes.filter((node) => node.type === 'junction') ?? [],
@@ -1097,6 +1307,7 @@ function App() {
         }),
       })
       await loadState()
+      void loadValvePlans(selectedNode)
       setNotice(
         `${result.message} Loss rate: ${formatNumber(result.actual_leak_flow_lph, 0)} L/h (Max Drop: ${formatNumber(
           result.max_pressure_drop_m,
@@ -1123,6 +1334,7 @@ function App() {
         method: 'POST',
       })
       setState(result.state)
+      void loadValvePlans(selectedNode)
       setNotice('Network successfully restored to healthy EPANET baseline state.')
     } catch (error) {
       setApiError(error instanceof Error ? error.message : 'Digital twin reset failed.')
@@ -1181,13 +1393,19 @@ function App() {
   // Handle AI Agent Query
   async function handleAgent(event?: FormEvent) {
     if (event) event.preventDefault()
+    await handleAgentQuery(agentPrompt)
+  }
+
+  async function handleAgentQuery(promptToUse?: string) {
+    const query = promptToUse || agentPrompt
+    if (promptToUse) setAgentPrompt(promptToUse)
     setOperation('agent')
     setApiError(null)
     setNotice(null)
     try {
       const result = await apiRequest<AgentResponse>('/agent', {
         method: 'POST',
-        body: JSON.stringify({ prompt: agentPrompt }),
+        body: JSON.stringify({ prompt: query }),
       })
       setAgentResult(result)
       setNotice(`Agent (${result.agent_id}) completed multi-step root-cause trace.`)
@@ -1211,6 +1429,8 @@ function App() {
           state={state}
           detection={detection}
           selectedNode={selectedNode}
+          waterQualityData={contamData as any}
+          sewerData={sewerData as any}
           onSelectNode={(id) => setSelectedNode(id)}
           onInjectAtNode={(id) => {
             setSelectedNode(id)
@@ -1247,6 +1467,37 @@ function App() {
           >
             <Icon name="cube" size={15} />
             <span>3D Operations</span>
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${activeTab === 'response_planner' ? 'tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('response_planner')}
+          >
+            <Icon name="clipboard" size={15} />
+            <span>Response Planner</span>
+            {state?.is_leak_injected && <span className="tab-badge tab-badge--alert">LEAK</span>}
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${activeTab === 'water_quality' ? 'tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('water_quality')}
+          >
+            <Icon name="drop" size={15} />
+            <span>Water Quality</span>
+            {contamData && contamData.severity_level !== 'NORMAL' && (
+              <span className="tab-badge tab-badge--alert">{contamData.severity_level}</span>
+            )}
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${activeTab === 'sewer_flood' ? 'tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('sewer_flood')}
+          >
+            <Icon name="activity" size={15} />
+            <span>Sewer & Flood</span>
+            {sewerData && sewerData.high_risk_manhole_count > 0 && (
+              <span className="tab-badge tab-badge--alert">{sewerData.high_risk_manhole_count} Risk</span>
+            )}
           </button>
           <button
             type="button"
@@ -1327,6 +1578,34 @@ function App() {
           </span>
         </div>
       </header>
+
+      {/* Public Health & Flood Advisory Banners */}
+      {!advisoryDismissed && contamData?.public_advisory && contamData.public_advisory.is_active && (
+        <PublicAdvisoryBanner
+          type={contamData.public_advisory.type}
+          title={contamData.public_advisory.title}
+          message={contamData.public_advisory.message}
+          ward={contamData.public_advisory.ward}
+          actions={contamData.public_advisory.recommended_actions}
+          onDismiss={() => setAdvisoryDismissed(true)}
+          onActionClick={() => setActiveTab('water_quality')}
+        />
+      )}
+
+      {!advisoryDismissed &&
+        (!contamData?.public_advisory || !contamData.public_advisory.is_active) &&
+        sewerData &&
+        sewerData.high_risk_manhole_count > 0 && (
+          <PublicAdvisoryBanner
+            type="FLOOD_WARNING"
+            title={`Sewer Overflow & Urban Ingress Warning (${sewerData.high_risk_manhole_count} Critical Manholes)`}
+            message={`Heavy stormwater runoff (${sewerData.rainfall_current_mm_h.toFixed(1)} mm/h) poses contamination risk to ${sewerData.threatened_water_mains.length} drinking water mains. Jetting crews mobilized for high-risk corridors.`}
+            ward="Wards 9, 12 & 14"
+            actions={sewerData.recommended_field_actions.slice(0, 3)}
+            onDismiss={() => setAdvisoryDismissed(true)}
+            onActionClick={() => setActiveTab('sewer_flood')}
+          />
+        )}
 
       <div className="dashboard">
         {/* Page Subheader */}
@@ -1525,6 +1804,8 @@ function App() {
                     state={state}
                     detection={detection}
                     selectedNode={selectedNode}
+                    waterQualityData={contamData as any}
+                    sewerData={sewerData as any}
                     onSelectNode={(id) => setSelectedNode(id)}
                     onInjectAtNode={(id) => {
                       setSelectedNode(id)
@@ -1748,6 +2029,26 @@ function App() {
                         <Icon name="refresh" size={15} />
                         {operation === 'reset' ? 'Restoring Baseline...' : 'Reset Network to Healthy'}
                       </button>
+
+                      {state?.is_leak_injected && (
+                        <button
+                          type="button"
+                          className="button button--secondary button--full"
+                          onClick={() => {
+                            void loadValvePlans(selectedNode)
+                            setActiveTab('response_planner')
+                          }}
+                          style={{
+                            marginTop: '6px',
+                            background: 'rgba(56, 189, 248, 0.12)',
+                            borderColor: '#38bdf8',
+                            color: '#38bdf8',
+                          }}
+                        >
+                          <Icon name="clipboard" size={15} />
+                          Open Valve Response Planner ↗
+                        </button>
+                      )}
                     </div>
                   </form>
                 </article>
@@ -2293,29 +2594,30 @@ function App() {
                       <button
                         type="button"
                         className="preset-pill"
-                        onClick={() =>
-                          setAgentPrompt('Diagnose current network anomaly and verify leak source')
-                        }
+                        onClick={() => void handleAgentQuery('What is the best way to isolate this leak?')}
                       >
-                        Diagnose Anomaly
+                        Best Way to Isolate Leak
                       </button>
                       <button
                         type="button"
                         className="preset-pill"
-                        onClick={() =>
-                          setAgentPrompt('Formulate containment plan to minimize hospital zone pressure drop')
-                        }
+                        onClick={() => void handleAgentQuery('Which valve cut protects the hospital?')}
                       >
-                        Hospital Protection Plan
+                        Which Valve Cut Protects Hospital?
                       </button>
                       <button
                         type="button"
                         className="preset-pill"
-                        onClick={() =>
-                          setAgentPrompt('Verify valve closure isolation feasibility and transient risk')
-                        }
+                        onClick={() => void handleAgentQuery('What happens if we close only V14?')}
                       >
-                        Isolation Feasibility
+                        What Happens if Close Only V14?
+                      </button>
+                      <button
+                        type="button"
+                        className="preset-pill"
+                        onClick={() => void handleAgentQuery('Which plan affects the fewest households?')}
+                      >
+                        Which Plan Affects Fewest Households?
                       </button>
                     </div>
                   </div>
@@ -3232,6 +3534,46 @@ function App() {
             </div>
           </section>
         )}
+
+        {/* TAB 8: RESPONSE PLANNER (VALVE-CUT PRIORITISATION) */}
+        {activeTab === 'response_planner' && (
+          <ResponsePlanner
+            data={valvePlans}
+            loading={vpLoading}
+            onSimulatePlan={(valves: string[]) => void handleApplyValvePlan(valves)}
+            onRefreshPlans={() => void loadValvePlans(selectedNode)}
+            onSwitchToMap={() => setActiveTab('overview')}
+          />
+        )}
+
+        {/* TAB 9: CONTAMINATION DETECTION & WATER QUALITY */}
+        {activeTab === 'water_quality' && (
+          <WaterQualityPanel
+            data={contamData}
+            loading={contamLoading}
+            onInjectContamination={(payload) => void handleInjectContamination(payload)}
+            onResetContamination={() => void handleResetContamination()}
+            onSwitchToResponsePlanner={(nodeId) => {
+              void loadValvePlans(nodeId)
+              setActiveTab('response_planner')
+            }}
+          />
+        )}
+
+        {/* TAB 10: SEWER OVERFLOW & FLOOD-WARNING LAYER */}
+        {activeTab === 'sewer_flood' && (
+          <SewerFloodPanel
+            data={sewerData}
+            loading={sewerLoading}
+            onSimulateRain={(payload) => void handleSimulateRain(payload)}
+            onResetSewer={() => void handleResetSewer()}
+            onSwitchToResponsePlanner={(nodeId) => {
+              void loadValvePlans(nodeId)
+              setActiveTab('response_planner')
+            }}
+          />
+        )}
+
         <footer className="footer">
           <span>© JALNETRA · 3D WATER INTELLIGENCE DIGITAL TWIN</span>
           <span>

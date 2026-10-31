@@ -1,0 +1,41 @@
+{
+  "model": "RandomForestClassifier",
+  "accuracy": 1.0,
+  "classes": [
+    "CONTAMINATION_EVENT",
+    "HYDRAULIC_DISTURBANCE",
+    "NORMAL",
+    "SENSOR_FAULT"
+  ],
+  "features": [
+    "free_chlorine_mg_l",
+    "chlorine_rate_of_change",
+    "turbidity_ntu",
+    "turbidity_rate_of_change",
+    "ph",
+    "conductivity_us_cm",
+    "orp_mv",
+    "temperature_c",
+    "pressure_m",
+    "pressure_deviation_m",
+    "flow_deviation_lmin",
+    "affected_sensors_count",
+    "rainfall_mm_h"
+  ],
+  "feature_importances": {
+    "free_chlorine_mg_l": 0.0606,
+    "chlorine_rate_of_change": 0.0385,
+    "turbidity_ntu": 0.079,
+    "turbidity_rate_of_change": 0.0562,
+    "ph": 0.0353,
+    "conductivity_us_cm": 0.0688,
+    "orp_mv": 0.096,
+    "temperature_c": 0.0084,
+    "pressure_m": 0.1259,
+    "pressure_deviation_m": 0.1504,
+    "flow_deviation_lmin": 0.0133,
+    "affected_sensors_count": 0.2672,
+    "rainfall_mm_h": 0.0004
+  },
+  "trained_at_iso": "2026-10-31T15:58:31Z"
+}

@@ -89,6 +89,62 @@ export type Detection = {
   top_suspects: Suspect[]
 }
 
+export type ContaminationMapData = {
+  status: string
+  severity_level: string
+  likely_source_nodes?: { node_id: string; confidence_pct: number; rank: number }[]
+  sensor_telemetry?: {
+    sensor_id: string
+    free_chlorine_mg_l: number
+    turbidity_ntu: number
+    ph: number
+    status: string
+    is_source_suspect?: boolean
+  }[]
+  public_advisory?: {
+    type: string
+    title: string
+    message: string
+    is_active: boolean
+    ward: string
+  }
+}
+
+export type SewerManholeMapItem = {
+  id: string
+  name: string
+  ward: string
+  lat_lng: number[]
+  current_level_m: number
+  overflow_risk_2h_pct: number
+  status: string
+  nearby_water_main: string
+  nearby_facility?: string
+}
+
+export type SewerMapData = {
+  manholes?: SewerManholeMapItem[]
+  conduits?: {
+    id: string
+    lat_lng_path?: number[][]
+    diameter_mm: number
+  }[]
+  facilities?: {
+    id: string
+    name: string
+    type: string
+    lat_lng: number[]
+    status: string
+  }[]
+  flood_zones?: {
+    id: string
+    name: string
+    risk_level: string
+    lat_lng: number[]
+    radius_m: number
+  }[]
+}
+
 interface Network3DMapProps {
   network: NetworkResponse | null
   state: NetworkState | null
@@ -99,6 +155,8 @@ interface Network3DMapProps {
   onSwitchToWhatIf?: (linkId: string) => void
   isFullScreen?: boolean
   onToggleFullScreen?: () => void
+  waterQualityData?: ContaminationMapData | null
+  sewerData?: SewerMapData | null
 }
 
 const MAPTILER_KEY = (import.meta.env.VITE_MAPTILER_API_KEY as string | undefined)?.trim() || ''
@@ -120,10 +178,13 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
   onSwitchToWhatIf,
   isFullScreen = false,
   onToggleFullScreen,
+  waterQualityData,
+  sewerData,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const pulseMarkerRef = useRef<maplibregl.Marker | null>(null)
+  const contamPulseMarkerRef = useRef<maplibregl.Marker | null>(null)
   const suspectMarkersRef = useRef<maplibregl.Marker[]>([])
   const orbitAnimationRef = useRef<number | null>(null)
 
@@ -141,6 +202,8 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
     tanks: true,
     leaks: true,
     buildings: true,
+    waterQuality: true,
+    sewerLayer: true,
   })
 
   // Timeline state (0.0 to 6.0 hours)
@@ -242,6 +305,7 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
     if (!network) return { type: 'FeatureCollection', features: [] }
 
     const leakNodeId = state?.active_leak?.node_id
+    const contamSourceId = waterQualityData?.likely_source_nodes?.[0]?.node_id
 
     const features: Feature[] = network.nodes
       .filter((node) => node.lat_lng && node.lat_lng.length === 2)
@@ -249,6 +313,23 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
         const sensor = sensorMap.get(node.id)
         const suspect = suspectMap.get(node.id)
         const isLeak = leakNodeId === node.id
+        const isContamSource = Boolean(contamSourceId && contamSourceId === node.id && waterQualityData?.status !== 'NORMAL')
+
+        const wq = waterQualityData?.sensor_telemetry?.find((s) => s.sensor_id === node.id)
+        let nodeStatus = isLeak
+          ? 'LEAK'
+          : isContamSource
+          ? 'CRITICAL'
+          : sensor
+          ? sensor.status
+          : node.type === 'tank' || node.type === 'reservoir'
+          ? 'STORAGE'
+          : 'NORMAL'
+
+        // If water quality layer is prioritized and has abnormal status
+        if (layerFilters.waterQuality && wq && wq.status !== 'NORMAL') {
+          nodeStatus = wq.status === 'CRITICAL' || wq.status === 'HIGH_RISK' ? 'CRITICAL' : 'WARNING'
+        }
 
         return {
           type: 'Feature',
@@ -263,25 +344,76 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
             base_demand: node.base_demand ?? 0,
             is_sensor: node.is_sensor,
             is_leak: isLeak,
+            is_contam_source: isContamSource,
             is_suspect: Boolean(suspect),
             suspect_rank: suspect?.rank ?? 0,
             suspect_prob: suspect?.probability ?? 0,
             pressure_m: sensor?.current_pressure_m ?? null,
             baseline_m: sensor?.baseline_pressure_m ?? null,
             drop_m: sensor?.pressure_drop_m ?? 0,
-            status: isLeak
-              ? 'LEAK'
-              : sensor
-              ? sensor.status
-              : node.type === 'tank' || node.type === 'reservoir'
-              ? 'STORAGE'
-              : 'NORMAL',
+            free_chlorine: wq?.free_chlorine_mg_l ?? null,
+            turbidity: wq?.turbidity_ntu ?? null,
+            status: nodeStatus,
           },
         }
       })
 
     return { type: 'FeatureCollection', features }
-  }, [network, state, sensorMap, suspectMap])
+  }, [network, state, sensorMap, suspectMap, waterQualityData, layerFilters.waterQuality])
+
+  // Sewer Conduits GeoJSON
+  const sewerConduitsGeoJSON = useMemo<FeatureCollection>(() => {
+    if (!sewerData?.conduits) return { type: 'FeatureCollection', features: [] }
+    const features: Feature[] = sewerData.conduits
+      .filter((c) => c.lat_lng_path && c.lat_lng_path.length >= 2)
+      .map((c) => ({
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: c.lat_lng_path!.map(([lat, lng]) => [lng, lat]),
+        },
+        properties: {
+          id: c.id,
+          diameter_mm: c.diameter_mm,
+        },
+      }))
+    return { type: 'FeatureCollection', features }
+  }, [sewerData])
+
+  // Sewer Manholes GeoJSON
+  const sewerManholesGeoJSON = useMemo<FeatureCollection>(() => {
+    if (!sewerData?.manholes) return { type: 'FeatureCollection', features: [] }
+    const features: Feature[] = sewerData.manholes.map((mh) => {
+      let riskColor = '#10b981' // Green Normal
+      if (mh.status === 'CRITICAL' || mh.overflow_risk_2h_pct >= 75) {
+        riskColor = '#ef4444' // Red Critical
+      } else if (mh.status === 'WARNING' || mh.overflow_risk_2h_pct >= 50) {
+        riskColor = '#f59e0b' // Amber Warning
+      } else if (mh.status === 'WATCH' || mh.overflow_risk_2h_pct >= 25) {
+        riskColor = '#38bdf8' // Cyan Watch
+      }
+
+      return {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [mh.lat_lng[1], mh.lat_lng[0]],
+        },
+        properties: {
+          id: mh.id,
+          name: mh.name,
+          ward: mh.ward,
+          current_level_m: mh.current_level_m,
+          overflow_risk_2h_pct: mh.overflow_risk_2h_pct,
+          status: mh.status,
+          risk_color: riskColor,
+          nearby_water_main: mh.nearby_water_main,
+          nearby_facility: mh.nearby_facility || 'Residential',
+        },
+      }
+    })
+    return { type: 'FeatureCollection', features }
+  }, [sewerData])
 
   // Initialize MapLibre GL Map
   useEffect(() => {
@@ -497,7 +629,59 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
         },
       })
 
+      // Sewer Conduits Source & Layer
+      map.addSource('sewer-conduits-source', {
+        type: 'geojson',
+        data: sewerConduitsGeoJSON,
+      })
+      map.addLayer({
+        id: 'sewer-conduits-layer',
+        type: 'line',
+        source: 'sewer-conduits-source',
+        paint: {
+          'line-width': 3.8,
+          'line-color': '#a855f7',
+          'line-dasharray': [2, 1],
+          'line-opacity': 0.85,
+        },
+      })
+
+      // Sewer Manholes Source & Layers
+      map.addSource('sewer-manholes-source', {
+        type: 'geojson',
+        data: sewerManholesGeoJSON,
+      })
+      map.addLayer({
+        id: 'sewer-manholes-glow',
+        type: 'circle',
+        source: 'sewer-manholes-source',
+        paint: {
+          'circle-radius': 13,
+          'circle-color': ['get', 'risk_color'],
+          'circle-opacity': 0.35,
+          'circle-blur': 0.8,
+        },
+      })
+      map.addLayer({
+        id: 'sewer-manholes-layer',
+        type: 'circle',
+        source: 'sewer-manholes-source',
+        paint: {
+          'circle-radius': 6.5,
+          'circle-color': ['get', 'risk_color'],
+          'circle-stroke-width': 2.2,
+          'circle-stroke-color': '#1e1b4b',
+          'circle-opacity': 0.95,
+        },
+      })
+
       // Interactivity
+      map.on('mouseenter', 'sewer-manholes-layer', () => {
+        map.getCanvas().style.cursor = 'pointer'
+      })
+      map.on('mouseleave', 'sewer-manholes-layer', () => {
+        map.getCanvas().style.cursor = ''
+      })
       map.on('mouseenter', 'junctions-layer', () => {
         map.getCanvas().style.cursor = 'pointer'
       })
@@ -568,7 +752,17 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
     if (nodeSource) {
       nodeSource.setData(nodesGeoJSON)
     }
-  }, [pipelinesGeoJSON, nodesGeoJSON, mapLoaded])
+
+    const sewerCSource = mapRef.current.getSource('sewer-conduits-source') as maplibregl.GeoJSONSource | undefined
+    if (sewerCSource) {
+      sewerCSource.setData(sewerConduitsGeoJSON)
+    }
+
+    const sewerMHSource = mapRef.current.getSource('sewer-manholes-source') as maplibregl.GeoJSONSource | undefined
+    if (sewerMHSource) {
+      sewerMHSource.setData(sewerManholesGeoJSON)
+    }
+  }, [pipelinesGeoJSON, nodesGeoJSON, sewerConduitsGeoJSON, sewerManholesGeoJSON, mapLoaded])
 
   // Active Leak Pulsing Ring Marker
   useEffect(() => {
@@ -601,6 +795,37 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
 
     pulseMarkerRef.current = marker
   }, [state?.active_leak, nodeLookup, mapLoaded])
+
+  // Contamination Source Pulsing Marker
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded) return
+
+    if (contamPulseMarkerRef.current) {
+      contamPulseMarkerRef.current.remove()
+      contamPulseMarkerRef.current = null
+    }
+
+    const sourceNodeId = waterQualityData?.likely_source_nodes?.[0]?.node_id
+    if (!sourceNodeId || waterQualityData?.status === 'NORMAL') return
+
+    const node = nodeLookup.get(sourceNodeId)
+    if (!node || !node.lat_lng) return
+
+    const el = document.createElement('div')
+    el.className = 'contam-pulse-container'
+    el.innerHTML = `
+      <div class="contam-pulse-wave contam-pulse-wave--2"></div>
+      <div class="contam-pulse-wave contam-pulse-wave--1"></div>
+      <div class="contam-pulse-core"></div>
+      <div class="contam-pulse-label">BIO-RISK #${node.id}</div>
+    `
+
+    const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+      .setLngLat([node.lat_lng[1], node.lat_lng[0]])
+      .addTo(mapRef.current)
+
+    contamPulseMarkerRef.current = marker
+  }, [waterQualityData, nodeLookup, mapLoaded])
 
   // Top-3 Suspect Badges
   useEffect(() => {
@@ -661,8 +886,18 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
     if (map.getLayer('3d-buildings')) {
       map.setLayoutProperty('3d-buildings', 'visibility', layerFilters.buildings ? 'visible' : 'none')
     }
+    if (map.getLayer('sewer-conduits-layer')) {
+      map.setLayoutProperty('sewer-conduits-layer', 'visibility', layerFilters.sewerLayer ? 'visible' : 'none')
+    }
+    if (map.getLayer('sewer-manholes-layer')) {
+      map.setLayoutProperty('sewer-manholes-layer', 'visibility', layerFilters.sewerLayer ? 'visible' : 'none')
+      map.setLayoutProperty('sewer-manholes-glow', 'visibility', layerFilters.sewerLayer ? 'visible' : 'none')
+    }
     if (pulseMarkerRef.current) {
       pulseMarkerRef.current.getElement().style.display = layerFilters.leaks ? 'block' : 'none'
+    }
+    if (contamPulseMarkerRef.current) {
+      contamPulseMarkerRef.current.getElement().style.display = layerFilters.waterQuality ? 'block' : 'none'
     }
     suspectMarkersRef.current.forEach((m) => {
       m.getElement().style.display = layerFilters.leaks ? 'block' : 'none'
@@ -904,6 +1139,26 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
               />
               <span className="layer-legend-dot" style={{ background: '#334155' }} />
               <span>3D City Buildings</span>
+            </label>
+
+            <label className="layer-checkbox">
+              <input
+                type="checkbox"
+                checked={layerFilters.waterQuality}
+                onChange={(e) => setLayerFilters((p) => ({ ...p, waterQuality: e.target.checked }))}
+              />
+              <span className="layer-legend-dot" style={{ background: '#f59e0b' }} />
+              <span>🧪 Water Quality Layer</span>
+            </label>
+
+            <label className="layer-checkbox">
+              <input
+                type="checkbox"
+                checked={layerFilters.sewerLayer}
+                onChange={(e) => setLayerFilters((p) => ({ ...p, sewerLayer: e.target.checked }))}
+              />
+              <span className="layer-legend-bar" style={{ background: '#a855f7' }} />
+              <span>🌧️ Sewer & Drainage Layer</span>
             </label>
           </div>
         </div>

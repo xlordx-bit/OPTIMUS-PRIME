@@ -1,0 +1,30 @@
+{
+  "model": "RandomForestClassifier",
+  "target": "overflow_in_2h",
+  "accuracy": 0.995,
+  "features": [
+    "elevation_m",
+    "current_water_level_m",
+    "rise_rate_m_hr",
+    "rain_last_15m_mm_h",
+    "rain_last_30m_mm_h",
+    "rain_last_60m_mm_h",
+    "forecast_1h_mm_h",
+    "forecast_2h_mm_h",
+    "drain_blocked",
+    "pump_offline"
+  ],
+  "feature_importances": {
+    "elevation_m": 0.0043,
+    "current_water_level_m": 0.2651,
+    "rise_rate_m_hr": 0.3758,
+    "rain_last_15m_mm_h": 0.1319,
+    "rain_last_30m_mm_h": 0.0281,
+    "rain_last_60m_mm_h": 0.0625,
+    "forecast_1h_mm_h": 0.0763,
+    "forecast_2h_mm_h": 0.0533,
+    "drain_blocked": 0.0016,
+    "pump_offline": 0.0011
+  },
+  "trained_at_iso": "2026-10-31T15:58:32Z"
+}

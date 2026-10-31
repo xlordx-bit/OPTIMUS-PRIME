@@ -315,3 +315,159 @@ class AgentResponse(BaseModel):
         ],
         description="Prioritized immediate actions"
     )
+
+
+# ---------------------------------------------------------------------------
+# Feature 1: Valve-Cut Prioritisation Schemas
+# ---------------------------------------------------------------------------
+class CriticalFacilityRecord(BaseModel):
+    id: str
+    name: str
+    type: str
+    node_id: str
+    ward: str
+    min_pressure_m: float
+    estimated_pressure_m: float
+    is_supplied: bool
+
+
+class ValvePlanItem(BaseModel):
+    valves: List[str]
+    valve_labels: List[str]
+    closed_pipes: List[str]
+    is_event_isolated: bool
+    affected_households: int
+    affected_population: int
+    disconnected_nodes_count: int
+    critical_facilities_protected: List[CriticalFacilityRecord]
+    critical_facilities_lost: List[CriticalFacilityRecord]
+    all_critical_protected: bool
+    water_saved_lph: float
+    min_remaining_pressure_m: float
+    expected_duration_hours: float
+    alternate_path_exists: bool
+    score: float
+    trade_off_label: Optional[str] = None
+
+
+class ValvePrioritisationResponse(BaseModel):
+    target_node: str
+    event_type: str
+    leak_rate_lph: float
+    recommended_plan: ValvePlanItem
+    alternative_plans: List[ValvePlanItem]
+    summary: str
+    confidence_score: float
+    candidate_valves_evaluated: int
+
+
+# ---------------------------------------------------------------------------
+# Feature 2: Contamination Schemas
+# ---------------------------------------------------------------------------
+class WaterQualitySensorReading(BaseModel):
+    sensor_id: str
+    node_id: str
+    free_chlorine_mg_l: float
+    chlorine_baseline_mg_l: float
+    chlorine_delta_mg_l: float
+    turbidity_ntu: float
+    turbidity_baseline_ntu: float
+    turbidity_delta_ntu: float
+    ph: float
+    conductivity_us_cm: float
+    orp_mv: float
+    temperature_c: float
+    pressure_m: float
+    status: str
+    anomalies: List[str]
+    is_source_suspect: bool
+
+
+class ContaminationSourceCandidate(BaseModel):
+    node_id: str
+    confidence_pct: float
+    rank: int
+    ward: str
+
+
+class PublicAdvisoryInfo(BaseModel):
+    type: str
+    title: str
+    message: str
+    is_active: bool
+    ward: str
+    recommended_actions: List[str]
+
+
+class ContaminationStatusResponse(BaseModel):
+    timestamp_iso: str
+    status: str
+    severity_level: str
+    ml_classification: str
+    confidence_score: float
+    safety_rules_summary: Dict[str, bool]
+    sensor_telemetry: List[WaterQualitySensorReading]
+    abnormal_sensor_count: int
+    abnormal_sensors: List[str]
+    likely_source_nodes: List[ContaminationSourceCandidate]
+    direction_of_spread: str
+    affected_zone_nodes: List[str]
+    recommended_isolation_valves: List[str]
+    public_advisory: PublicAdvisoryInfo
+    spread_timeline: List[Dict[str, Any]]
+
+
+# ---------------------------------------------------------------------------
+# Feature 3: Sewer Overflow and Flood Schemas
+# ---------------------------------------------------------------------------
+class SewerManholeState(BaseModel):
+    id: str
+    name: str
+    ward: str
+    coordinates: Dict[str, float]
+    lat_lng: List[float]
+    elevation_m: float
+    depth_m: float
+    overflow_threshold_m: float
+    current_level_m: float
+    fill_percentage: float
+    rise_rate_m_hr: float
+    overflow_risk_1h_pct: float
+    overflow_risk_2h_pct: float
+    overflow_risk_6h_pct: float
+    status: str
+    is_drain_blocked: bool
+    nearby_water_main: str
+    nearby_valve: str
+    nearby_facility: str
+
+
+class ThreatenedWaterMain(BaseModel):
+    pipe_id: str
+    nearby_valve: str
+    source_manhole: str
+    ward: str
+    contamination_probability_pct: float
+    nearby_facility: str
+
+
+class SewerStateResponse(BaseModel):
+    timestamp_iso: str
+    rainfall_current_mm_h: float
+    rainfall_15m_mm_h: float
+    rainfall_30m_mm_h: float
+    rainfall_60m_mm_h: float
+    forecast_1h_mm_h: float
+    forecast_2h_mm_h: float
+    forecast_6h_mm_h: float
+    active_blockages: List[str]
+    offline_pumps: List[str]
+    manholes: List[SewerManholeState]
+    conduits: List[Dict[str, Any]]
+    facilities: List[Dict[str, Any]]
+    flood_zones: List[Dict[str, Any]]
+    high_risk_manhole_count: int
+    threatened_water_mains: List[ThreatenedWaterMain]
+    summary_verdict: str
+    recommended_field_actions: List[str]
+
