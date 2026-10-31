@@ -180,8 +180,8 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
   detection,
   selectedNode,
   onSelectNode,
-  onInjectAtNode,
-  onSwitchToWhatIf,
+  onInjectAtNode: _onInjectAtNode,
+  onSwitchToWhatIf: _onSwitchToWhatIf,
   isFullScreen = false,
   onToggleFullScreen,
   waterQualityData,
@@ -213,14 +213,6 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
     sewerLayer: true,
   })
   const [isLayersCollapsed, setIsLayersCollapsed] = useState(false)
-
-  // Timeline state (0.0 to 6.0 hours)
-  const [timelineHour, setTimelineHour] = useState(6.0)
-  const [isPlayingTimeline, setIsPlayingTimeline] = useState(false)
-  const timelineIntervalRef = useRef<number | null>(null)
-
-  // Active inspected element popup state
-  const [inspectedNodeId, setInspectedNodeId] = useState<string | null>(null)
 
   // Standard ES6 Map lookups
   const sensorMap = useMemo(
@@ -735,21 +727,18 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
       map.on('click', 'junctions-layer', (e: maplibregl.MapLayerMouseEvent) => {
         if (!e.features || !e.features[0] || !e.features[0].properties) return
         const id = String(e.features[0].properties.id)
-        setInspectedNodeId(id)
         onSelectNode(id)
       })
 
       map.on('click', 'sensors-layer', (e: maplibregl.MapLayerMouseEvent) => {
         if (!e.features || !e.features[0] || !e.features[0].properties) return
         const id = String(e.features[0].properties.id)
-        setInspectedNodeId(id)
         onSelectNode(id)
       })
 
       map.on('click', 'tanks-layer', (e: maplibregl.MapLayerMouseEvent) => {
         if (!e.features || !e.features[0] || !e.features[0].properties) return
         const id = String(e.features[0].properties.id)
-        setInspectedNodeId(id)
         onSelectNode(id)
       })
     })
@@ -762,7 +751,6 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
 
     return () => {
       if (orbitAnimationRef.current) cancelAnimationFrame(orbitAnimationRef.current)
-      if (timelineIntervalRef.current) clearInterval(timelineIntervalRef.current)
       if (pulseMarkerRef.current) pulseMarkerRef.current.remove()
       suspectMarkersRef.current.forEach((m) => m.remove())
       map.remove()
@@ -880,7 +868,6 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
       el.addEventListener('click', (e) => {
         e.stopPropagation()
         onSelectNode(suspect.node_id)
-        setInspectedNodeId(suspect.node_id)
       })
 
       const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
@@ -985,23 +972,6 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
     }
   }
 
-  // Timeline playback simulation
-  useEffect(() => {
-    if (isPlayingTimeline) {
-      timelineIntervalRef.current = window.setInterval(() => {
-        setTimelineHour((prev) => {
-          if (prev >= 6.0) return 0.5
-          return Math.round((prev + 0.5) * 10) / 10
-        })
-      }, 900)
-    } else if (timelineIntervalRef.current) {
-      clearInterval(timelineIntervalRef.current)
-    }
-    return () => {
-      if (timelineIntervalRef.current) clearInterval(timelineIntervalRef.current)
-    }
-  }, [isPlayingTimeline])
-
   // Fly to selected node
   useEffect(() => {
     if (!mapRef.current || !mapLoaded || !selectedNode) return
@@ -1020,7 +990,6 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
     const node = nodeLookup.get(focusRequest.nodeId)
     if (!node?.lat_lng || node.lat_lng.length !== 2) return
 
-    setInspectedNodeId(node.id)
     mapRef.current.flyTo({
       center: [node.lat_lng[1], node.lat_lng[0]],
       zoom: 17.5,
@@ -1029,15 +998,6 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
       essential: true,
     })
   }, [focusRequest, nodeLookup, mapLoaded])
-
-  const inspectedNode = useMemo(() => {
-    const id = inspectedNodeId || selectedNode
-    if (!id) return null
-    const n = nodeLookup.get(id)
-    const s = sensorMap.get(id)
-    const suspect = suspectMap.get(id)
-    return { node: n, sensor: s, suspect }
-  }, [inspectedNodeId, selectedNode, nodeLookup, sensorMap, suspectMap])
 
   return (
     <div className={`map3d-wrapper ${isFullScreen ? 'map3d-wrapper--fullscreen' : ''}`}>
@@ -1263,7 +1223,6 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
                   className={`suspect-quick-btn ${selectedNode === s.node_id ? 'is-active' : ''}`}
                   onClick={() => {
                     onSelectNode(s.node_id)
-                    setInspectedNodeId(s.node_id)
                   }}
                 >
                   <span className="suspect-rank-num">#{s.rank}</span>
@@ -1271,144 +1230,6 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
                   <strong>{(s.probability * 100).toFixed(0)}%</strong>
                 </button>
               ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Floating HUD: Timeline Scrubber */}
-      <div className="map3d-hud map3d-hud--bottom-center">
-        <div className="hud-timeline-panel">
-          <div className="timeline-header">
-            <div className="timeline-title">
-              <span className="timeline-pulse-dot" />
-              <span>SIMULATION TIMELINE</span>
-            </div>
-            <div className="timeline-time-display">
-              Hour <strong>{timelineHour.toFixed(1)}</strong> of 6.0 hr window
-            </div>
-          </div>
-
-          <div className="timeline-controls-row">
-            <button
-              type="button"
-              className="timeline-play-btn"
-              onClick={() => setIsPlayingTimeline((p) => !p)}
-              title={isPlayingTimeline ? 'Pause playback' : 'Play simulation timeline'}
-            >
-              {isPlayingTimeline ? '❚❚' : '▶'}
-            </button>
-
-            <div className="timeline-slider-wrap">
-              <input
-                type="range"
-                min="0.0"
-                max="6.0"
-                step="0.5"
-                value={timelineHour}
-                onChange={(e) => setTimelineHour(Number(e.target.value))}
-                className="timeline-slider"
-              />
-              <div className="timeline-ticks">
-                <span>0h Baseline</span>
-                <span>1h</span>
-                <span>2h Injection</span>
-                <span>3h Wave</span>
-                <span>4h Deficit</span>
-                <span>5h</span>
-                <span>6h End</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Floating HUD: Inspected Node Glassmorphism Card */}
-      {inspectedNode?.node && (
-        <div className="map3d-hud map3d-hud--bottom-right">
-          <div className="hud-glass-card">
-            <div className="card-top">
-              <div>
-                <span className="card-eyebrow">
-                  {inspectedNode.node.type.toUpperCase()} ·{' '}
-                  {inspectedNode.sensor ? 'MONITOR' : 'DISTRIBUTION POINT'}
-                </span>
-                <h3 className="card-title">Junction {inspectedNode.node.id}</h3>
-              </div>
-              <button
-                type="button"
-                className="card-close"
-                onClick={() => setInspectedNodeId(null)}
-                title="Dismiss inspector"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="card-stats-grid">
-              <div className="card-stat">
-                <span className="card-stat-label">ELEVATION</span>
-                <strong className="card-stat-val">{inspectedNode.node.elevation ?? 0} m</strong>
-              </div>
-              <div className="card-stat">
-                <span className="card-stat-label">BASE DEMAND</span>
-                <strong className="card-stat-val">
-                  {(((inspectedNode.node.base_demand ?? 0) * 3600) || 0).toFixed(1)} m³/h
-                </strong>
-              </div>
-
-              {inspectedNode.sensor && (
-                <>
-                  <div className="card-stat">
-                    <span className="card-stat-label">CURRENT HEAD</span>
-                    <strong className="card-stat-val">
-                      {inspectedNode.sensor.current_pressure_m.toFixed(2)} m
-                    </strong>
-                  </div>
-                  <div className="card-stat">
-                    <span className="card-stat-label">PRESSURE DEFICIT</span>
-                    <strong
-                      className={`card-stat-val ${
-                        inspectedNode.sensor.pressure_drop_m > 0.8 ? 'is-alert' : ''
-                      }`}
-                    >
-                      +{inspectedNode.sensor.pressure_drop_m.toFixed(2)} m
-                    </strong>
-                  </div>
-                </>
-              )}
-
-              {inspectedNode.suspect && (
-                <div className="card-stat card-stat--full" style={{ background: 'rgba(245, 158, 11, 0.1)' }}>
-                  <span className="card-stat-label" style={{ color: '#f59e0b' }}>
-                    SOURCE CANDIDATE #{inspectedNode.suspect.rank}
-                  </span>
-                  <strong className="card-stat-val" style={{ color: '#fbbf24' }}>
-                    {(inspectedNode.suspect.probability * 100).toFixed(1)}% Likelihood
-                  </strong>
-                </div>
-              )}
-            </div>
-
-            <div className="card-actions">
-              {onInjectAtNode && (
-                <button
-                  type="button"
-                  className="card-action-btn card-action-btn--primary"
-                  onClick={() => onInjectAtNode(inspectedNode.node!.id)}
-                >
-                  Inject Leak Here
-                </button>
-              )}
-              {onSwitchToWhatIf && (
-                <button
-                  type="button"
-                  className="card-action-btn card-action-btn--secondary"
-                  onClick={() => onSwitchToWhatIf('111')}
-                >
-                  Isolate Pipe
-                </button>
-              )}
             </div>
           </div>
         </div>
