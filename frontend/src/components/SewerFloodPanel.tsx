@@ -140,7 +140,7 @@ export const SewerFloodPanel: React.FC<SewerFloodPanelProps> = ({
         <div className="planner-title-block">
           <span className="planner-tag">URBAN SANITATION & STORMWATER SURVEILLANCE</span>
           <h2 className="planner-headline">
-            Sewer Overflow & Flood-Warning Predictive Layer
+          Sewer Overflow & Flood-Risk Forecast
           </h2>
           <p className="planner-subtext">
             Forecasts drainage capacity bottlenecks, 1h/2h/6h manhole surcharges, and drinking-water cross-contamination risks.
@@ -161,7 +161,7 @@ export const SewerFloodPanel: React.FC<SewerFloodPanelProps> = ({
       {/* Primary Verdict Callout Banner */}
       <div className={`wq-advisory-box ${high_risk_manhole_count > 0 ? 'wq-advisory-box--alert' : 'wq-advisory-box--ok'}`}>
         <div className="wq-advisory-icon">
-          {high_risk_manhole_count > 0 ? '🌧️' : '☀️'}
+          {high_risk_manhole_count > 0 ? 'ALERT' : 'NORMAL'}
         </div>
         <div className="wq-advisory-body">
           <div className="wq-advisory-tag-row">
@@ -219,7 +219,7 @@ export const SewerFloodPanel: React.FC<SewerFloodPanelProps> = ({
             <div className="fac-badges-list">
               {facilities.map((fac) => (
                 <div key={fac.id} className={`infra-pill ${fac.status.includes('FAIL') ? 'infra-pill--fail' : 'infra-pill--ok'}`}>
-                  <span>{fac.type === 'pump_station' ? '⚡' : fac.type === 'retention_basin' ? '🌊' : '⚓'}</span>
+                  <span>{fac.type.replace(/_/g, ' ').toUpperCase()}</span>
                   <div>
                     <strong>{fac.name}</strong>
                     <small>{fac.status}</small>
@@ -281,7 +281,7 @@ export const SewerFloodPanel: React.FC<SewerFloodPanelProps> = ({
               style={{ width: '100%', marginTop: '0.8rem' }}
               disabled={isSimulating}
             >
-              {isSimulating ? 'Simulating Runoff Dynamics...' : '🌧️ Execute Rain Simulation'}
+              {isSimulating ? 'Simulating Runoff Dynamics...' : 'Run Rainfall Simulation'}
             </button>
           </form>
         </div>
@@ -429,7 +429,7 @@ export const SewerFloodPanel: React.FC<SewerFloodPanelProps> = ({
 
               <div className="mh-footer">
                 <span>Nearby Water: W-{mh.nearby_water_main}</span>
-                {mh.is_drain_blocked && <span className="drain-blocked-tag">DRAIN BLOCKED ⚠</span>}
+                {mh.is_drain_blocked && <span className="drain-blocked-tag">DRAIN BLOCKED</span>}
               </div>
             </div>
           ))}

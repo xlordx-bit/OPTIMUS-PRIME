@@ -145,7 +145,7 @@ export const WaterQualityPanel: React.FC<WaterQualityPanelProps> = ({
             Contamination Detection & Upstream Localization
           </h2>
           <p className="planner-subtext">
-            Dual-layer detection: deterministic safety rules + machine-learning anomaly classifier (WHO & BIS Standards).
+            Dual-layer detection combines deterministic safety rules with a multi-parameter sensor assessment aligned with WHO and BIS standards.
           </p>
         </div>
 
@@ -163,7 +163,7 @@ export const WaterQualityPanel: React.FC<WaterQualityPanelProps> = ({
       {/* Advisory Callout Banner */}
       <div className={`wq-advisory-box ${public_advisory.is_active ? 'wq-advisory-box--alert' : 'wq-advisory-box--ok'}`}>
         <div className="wq-advisory-icon">
-          {public_advisory.is_active ? '🚨' : '💧'}
+          {public_advisory.is_active ? 'ALERT' : 'NORMAL'}
         </div>
         <div className="wq-advisory-body">
           <div className="wq-advisory-tag-row">
@@ -222,29 +222,29 @@ export const WaterQualityPanel: React.FC<WaterQualityPanelProps> = ({
           </div>
         </div>
 
-        {/* Layer 2: Machine Learning Classifier */}
+        {/* Layer 2: Multi-Parameter Assessment */}
         <div className="wq-card">
           <div className="wq-card-header">
             <div>
               <span className="wq-card-eyebrow">SECOND LAYER DETECTION</span>
-              <h4 className="wq-card-title">ML Multi-Parameter Anomaly Engine</h4>
+              <h4 className="wq-card-title">Multi-Parameter Sensor Assessment</h4>
             </div>
-            <span className="layer-mode-tag">RANDOM FOREST · SCIKIT-LEARN</span>
+            <span className="layer-mode-tag">MULTI-PARAMETER SENSOR REVIEW</span>
           </div>
 
-          <div className="ml-status-hero">
-            <div className="ml-classification-pill">
-              CLASSIFICATION: <strong>{ml_classification.replace(/_/g, ' ')}</strong>
+          <div className="assessment-status-hero">
+            <div className="assessment-classification-pill">
+              ASSESSMENT: <strong>{ml_classification.replace(/_/g, ' ')}</strong>
             </div>
-            <div className="ml-confidence-score">
-              CONFIDENCE: <strong>{confidence_score}%</strong>
+            <div className="assessment-score">
+              ASSESSMENT SCORE: <strong>{confidence_score}%</strong>
             </div>
-            <p className="ml-distinction-note">
-              Model differentiates between <strong>Normal Variation</strong>, <strong>Sensor Fault</strong> (single parameter outlier), <strong>Hydraulic Disturbance</strong> (valve shut / pump trip without chemical shift), and <strong>True Contamination</strong>.
+            <p className="assessment-distinction-note">
+              The assessment distinguishes <strong>Normal Variation</strong>, <strong>Sensor Fault</strong> (single parameter outlier), <strong>Hydraulic Disturbance</strong> (valve shut / pump trip without chemical shift), and <strong>True Contamination</strong>.
             </p>
           </div>
 
-          <div className="ml-feature-indicators">
+          <div className="assessment-feature-indicators">
             <div className="feature-indicator">
               <span>Affected Sensors</span>
               <strong>{data.abnormal_sensor_count} of 12</strong>
@@ -266,7 +266,7 @@ export const WaterQualityPanel: React.FC<WaterQualityPanelProps> = ({
               style={{ width: '100%', marginTop: '1rem' }}
               onClick={() => onSwitchToResponsePlanner(likely_source_nodes[0].node_id)}
             >
-              🛡️ Open Response Planner for Source Node #{likely_source_nodes[0].node_id} ↗
+              Open Response Planner for Source Node #{likely_source_nodes[0].node_id} ↗
             </button>
           )}
         </div>
@@ -471,7 +471,7 @@ export const WaterQualityPanel: React.FC<WaterQualityPanelProps> = ({
 
           <div className="form-actions">
             <button type="submit" className="planner-btn planner-btn--primary" disabled={isSubmitting}>
-              {isSubmitting ? 'Injecting Plume...' : '🧪 Inject Contamination Scenario'}
+              {isSubmitting ? 'Injecting Plume...' : 'Inject Contamination Scenario'}
             </button>
             <button
               type="button"

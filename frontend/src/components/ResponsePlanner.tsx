@@ -160,7 +160,7 @@ export const ResponsePlanner: React.FC<ResponsePlannerProps> = ({
           )}
           {onSwitchToMap && (
             <button type="button" className="planner-btn planner-btn--primary" onClick={onSwitchToMap}>
-              🗺️ View on 3D Map
+              View on 3D Map
             </button>
           )}
         </div>
@@ -174,7 +174,7 @@ export const ResponsePlanner: React.FC<ResponsePlannerProps> = ({
 
       {/* Verified Natural Language Output Banner per Spec */}
       <div className="planner-summary-callout">
-        <div className="summary-callout-icon">💡</div>
+        <div className="summary-callout-icon">NOTE</div>
         <div className="summary-callout-body">
           <span className="summary-callout-label">SYSTEM RECOMMENDATION VERDICT</span>
           <p className="summary-callout-text">{summary}</p>
@@ -213,13 +213,13 @@ export const ResponsePlanner: React.FC<ResponsePlannerProps> = ({
           <div className="plan-hero-left">
             <div className="plan-hero-badge-strip">
               <span className={`status-pill ${currentPlan.is_event_isolated ? 'status-pill--green' : 'status-pill--red'}`}>
-                {currentPlan.is_event_isolated ? '✓ FULLY ISOLATED' : '⚠ PARTIAL CONTAINMENT'}
+                {currentPlan.is_event_isolated ? 'FULLY ISOLATED' : 'PARTIAL CONTAINMENT'}
               </span>
               <span className={`status-pill ${currentPlan.all_critical_protected ? 'status-pill--green' : 'status-pill--amber'}`}>
-                {currentPlan.all_critical_protected ? '🛡️ ALL CRITICAL FACILITIES SAFE' : '⚠ FACILITY AT RISK'}
+                {currentPlan.all_critical_protected ? 'ALL CRITICAL FACILITIES SAFE' : 'FACILITY AT RISK'}
               </span>
               <span className="status-pill status-pill--cyan">
-                ⚡ CONFIDENCE: {confidence_score}%
+                PLAN CONFIDENCE: {confidence_score}%
               </span>
             </div>
             <h3 className="plan-hero-title">
@@ -240,7 +240,7 @@ export const ResponsePlanner: React.FC<ResponsePlannerProps> = ({
               disabled={isSimulating}
               onClick={() => handleSimulate(currentPlan.valves)}
             >
-              {isSimulating ? 'Simulating Propagation...' : '⚡ Simulate This Plan'}
+              {isSimulating ? 'Simulating Propagation...' : 'Simulate This Plan'}
             </button>
             <small className="simulate-note">Simulates on temporary graph copy. Does not send physical hardware commands.</small>
           </div>
@@ -308,7 +308,7 @@ export const ResponsePlanner: React.FC<ResponsePlannerProps> = ({
               <div key={fac.id} className="fac-card fac-card--protected">
                 <div className="fac-card-top">
                   <span className="fac-type-icon">
-                    {fac.type === 'hospital' ? '🏥' : fac.type === 'school' ? '🏫' : fac.type === 'anganwadi' ? '👶' : '⚕️'}
+                    {fac.type.replace(/_/g, ' ').toUpperCase()}
                   </span>
                   <div>
                     <strong>{fac.name}</strong>
@@ -333,7 +333,7 @@ export const ResponsePlanner: React.FC<ResponsePlannerProps> = ({
             {currentPlan.critical_facilities_lost.map((fac) => (
               <div key={fac.id} className="fac-card fac-card--lost">
                 <div className="fac-card-top">
-                  <span className="fac-type-icon">⚠️</span>
+                  <span className="fac-type-icon">AT RISK</span>
                   <div>
                     <strong>{fac.name}</strong>
                     <small>Node #{fac.node_id} · {fac.ward}</small>
@@ -403,7 +403,7 @@ export const ResponsePlanner: React.FC<ResponsePlannerProps> = ({
                       {alt.is_event_isolated ? (
                         <span className="text-ok">YES ✓</span>
                       ) : (
-                        <span className="text-alert">PARTIAL ⚠</span>
+                        <span className="text-alert">PARTIAL</span>
                       )}
                     </td>
                     <td>

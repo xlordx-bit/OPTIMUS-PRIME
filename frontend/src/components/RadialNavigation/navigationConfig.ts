@@ -41,10 +41,10 @@ export interface RadialSectorConfig {
  * 4. Sewer & Flood (Lower Right: +18°)
  * 5. Pressure Monitoring (Bottom Right: +54°)
  * 6. What-If (Bottom: +90°)
- * 7. AI Work Orders (Bottom Left: +126°)
+ * 7. Work Orders (Bottom Left: +126°)
  * 8. Valve Simulation (Left: +162°)
- * 9. ML Diagnostics (Upper Left: +198°)
- * 10. AI Agent (Top Left: +234°)
+ * 9. Leak Diagnostics (Upper Left: +198°)
+ * 10. Operations Support (Top Left: +234°)
  */
 export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
   {
@@ -115,11 +115,11 @@ export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
   },
   {
     id: 'workorders',
-    label: 'AI Work Orders',
-    title: 'AI Work Order Management',
-    subtitle: 'AUTONOMOUS FIELD CREW DISPATCH',
+    label: 'Work Orders',
+    title: 'Work Order Management',
+    subtitle: 'FIELD CREW DISPATCH & TRACKING',
     description:
-      'Autonomous generation and lifecycle tracking of prioritized work orders based on anomaly confidence and pipe vulnerability scores.',
+      'Create and track prioritized work orders based on sensor alerts, pipe conditions, and service impact.',
     iconName: 'wrench',
     centerAngleDeg: 126, // Bottom Left
     shortcutKey: '7',
@@ -137,23 +137,23 @@ export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
   },
   {
     id: 'diagnostics',
-    label: 'ML Diagnostics',
-    title: 'Machine Learning Diagnostics',
-    subtitle: 'ACOUSTIC & RESIDUAL LEAK CLASSIFIER',
+    label: 'Leak Diagnostics',
+    title: 'Network Leak Diagnostics',
+    subtitle: 'LEAK DETECTION & SOURCE RANKING',
     description:
-      'Gradient boosted & neural network leak detection model with suspect ranking, confidence intervals, and leak rate estimations.',
+      'Review pressure and flow readings to identify likely leak locations, estimate water loss, and compare source candidates.',
     iconName: 'scan',
     centerAngleDeg: 198, // Upper Left
     shortcutKey: '9',
   },
   {
     id: 'agent',
-    label: 'AI Operations Agent',
-    title: 'Autonomous Operations Agent',
-    subtitle: 'MULTI-STEP REASONING & INCIDENT TRIAGE',
+    label: 'Operations Support',
+    title: 'Operations Decision Support',
+    subtitle: 'INCIDENT REVIEW & RESPONSE GUIDANCE',
     description:
-      'Autonomous digital twin copilot that investigates network anomalies, invokes diagnostics tools, and formulates containment strategies.',
-    iconName: 'bot',
+      'Review network incidents, consult diagnostic results, and prepare containment options for operator review.',
+    iconName: 'activity',
     centerAngleDeg: 234, // Top Left
     shortcutKey: '0',
   },

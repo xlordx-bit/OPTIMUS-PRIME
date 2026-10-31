@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import './App.css'
-import Network3DMap from './components/Network3DMap'
+import Network3DMap, { type MapFocusRequest } from './components/Network3DMap'
 import { PublicAdvisoryBanner } from './components/PublicAdvisoryBanner'
 import ResponsePlanner, { type ValvePrioritisationData } from './components/ResponsePlanner'
 import WaterQualityPanel, { type ContaminationData } from './components/WaterQualityPanel'
@@ -814,11 +814,13 @@ function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview')
   const [mapMode, setMapMode] = useState<MapViewMode>('3d')
   const [isFullScreen3D, setIsFullScreen3D] = useState(false)
+  const mapPanelRef = useRef<HTMLElement | null>(null)
 
   const [network, setNetwork] = useState<NetworkResponse | null>(null)
   const [state, setState] = useState<NetworkState | null>(null)
   const [detection, setDetection] = useState<Detection | null>(null)
   const [selectedNode, setSelectedNode] = useState('117')
+  const [mapFocusRequest, setMapFocusRequest] = useState<MapFocusRequest | null>(null)
   const [leakArea, setLeakArea] = useState(0.002)
   const [operation, setOperation] = useState<Operation>(null)
   const [initialLoading, setInitialLoading] = useState(true)
@@ -831,7 +833,7 @@ function App() {
   const [whatIfReductionPct, setWhatIfReductionPct] = useState(20)
   const [whatIfResult, setWhatIfResult] = useState<WhatIfResponse | null>(null)
 
-  // AI Agent State
+  // Operations support state
   const [agentPrompt, setAgentPrompt] = useState('What is the optimal containment plan for the current anomaly?')
   const [agentResult, setAgentResult] = useState<AgentResponse | null>(null)
 
@@ -1415,7 +1417,7 @@ function App() {
       setDetection(result)
       if (result.leak_detected) {
         setNotice(
-          `Leak anomaly detected! Model localized top suspect to Junction ${result.top_suspects[0]?.node_id ?? 'Unknown'}`
+          `Leak anomaly detected. Likely source identified at Junction ${result.top_suspects[0]?.node_id ?? 'Unknown'}.`
         )
       } else {
         setNotice('No hydraulic anomaly detected. All sensor pressures within normal baseline bounds.')
@@ -1452,7 +1454,7 @@ function App() {
     }
   }
 
-  // Handle AI Agent Query
+  // Handle an operations support request
   async function handleAgent(event?: FormEvent) {
     if (event) event.preventDefault()
     await handleAgentQuery(agentPrompt)
@@ -1470,9 +1472,9 @@ function App() {
         body: JSON.stringify({ prompt: query }),
       })
       setAgentResult(result)
-      setNotice(`Agent (${result.agent_id}) completed multi-step root-cause trace.`)
+      setNotice('Operations review completed.')
     } catch (error) {
-      setApiError(error instanceof Error ? error.message : 'Autonomous operations agent failed.')
+      setApiError(error instanceof Error ? error.message : 'Operations review failed.')
     } finally {
       setOperation(null)
     }
@@ -1500,6 +1502,7 @@ function App() {
           state={state}
           detection={detection}
           selectedNode={selectedNode}
+          focusRequest={mapFocusRequest}
           waterQualityData={contamData as any}
           sewerData={sewerData as any}
           onSelectNode={(id) => setSelectedNode(id)}
@@ -1526,12 +1529,12 @@ function App() {
             e.preventDefault()
             setActiveTab('overview')
           }}
-          aria-label="NirX Water Infrastructure Intelligence"
+          aria-label="NirX Water Infrastructure Operations"
           title="Return to Digital Twin Network Overview"
         >
           <div className="brand-wordmark-wrap">
             <span className="brand-wordmark">NirX</span>
-            <span className="brand-sub">WATER INFRASTRUCTURE INTELLIGENCE</span>
+            <span className="brand-sub">WATER INFRASTRUCTURE OPERATIONS</span>
           </div>
         </a>
 
@@ -1627,7 +1630,7 @@ function App() {
                   setActiveTab(isHealthy ? 'overview' : 'diagnostics')
                 }
               }}
-              title={isHealthy ? 'System Healthy - View Network Overview' : 'Physical Leak / Anomaly - View ML Diagnostics'}
+              title={isHealthy ? 'System Healthy - View Network Overview' : 'Physical Leak / Anomaly - View Leak Diagnostics'}
             >
               <span className="system-state-icon">
                 <Icon name={isHealthy ? 'check' : 'alert'} size={15} />
@@ -1720,7 +1723,7 @@ function App() {
                 setActiveTab('diagnostics')
               }
             }}
-            title="Click to view ML Leak Diagnostics & Suspect Localization"
+            title="Click to view Leak Diagnostics & Suspect Localization"
           >
             <div className="metric-card-top">
               <div className="metric-title-group">
@@ -1872,7 +1875,7 @@ function App() {
           <>
             <section className="main-grid">
               {/* Map Panel */}
-              <article className="panel map-panel">
+              <article className="panel map-panel" ref={mapPanelRef}>
                 <div className="panel-heading">
                   <div>
                     <div className="eyebrow">
@@ -1890,7 +1893,7 @@ function App() {
                         onClick={() => setMapMode('3d')}
                         title="Switch to 3D MapLibre City View"
                       >
-                        🌐 3D City
+                        3D City
                       </button>
                       <button
                         type="button"
@@ -1898,7 +1901,7 @@ function App() {
                         onClick={() => setMapMode('2d')}
                         title="Switch to 2D Hydraulic Schematic"
                       >
-                        📐 2D Schema
+                        2D Schema
                       </button>
                     </div>
 
@@ -1930,6 +1933,7 @@ function App() {
                     state={state}
                     detection={detection}
                     selectedNode={selectedNode}
+                    focusRequest={mapFocusRequest}
                     waterQualityData={contamData as any}
                     sewerData={sewerData as any}
                     onSelectNode={(id) => setSelectedNode(id)}
@@ -1978,7 +1982,7 @@ function App() {
                         <i className="legend-dot legend-dot--critical" /> CRITICAL (&gt;2.0m)
                       </span>
                       <span>
-                        <i className="legend-dot legend-dot--suspect" /> ML SUSPECT
+                        <i className="legend-dot legend-dot--suspect" /> SUSPECTED SOURCE
                       </span>
                     </div>
                   </div>
@@ -2256,7 +2260,16 @@ function App() {
                                 className="action-pill-btn"
                                 onClick={(e) => {
                                   e.stopPropagation()
+                                  setMapMode('3d')
                                   setSelectedNode(sensor.node_id)
+                                  setMapFocusRequest((request) => ({
+                                    nodeId: sensor.node_id,
+                                    requestId: (request?.requestId ?? 0) + 1,
+                                  }))
+                                  mapPanelRef.current?.scrollIntoView({
+                                    behavior: 'smooth',
+                                    block: 'center',
+                                  })
                                 }}
                               >
                                 Focus
@@ -2279,21 +2292,21 @@ function App() {
           </>
         )}
 
-        {/* TAB 2: ML DIAGNOSTICS & WORK ORDERS */}
+        {/* TAB 2: LEAK DIAGNOSTICS & WORK ORDERS */}
         {activeTab === 'diagnostics' && (
           <section className="diagnostics-view">
             <div className="diagnostics-hero-grid">
               <article className="panel diagnostics-control-card">
                 <div className="panel-heading">
                   <div>
-                    <div className="eyebrow">MACHINE LEARNING PIPELINE</div>
-                    <h2>Dual-Model Leak Engine</h2>
+                    <div className="eyebrow">NETWORK SENSOR ANALYSIS</div>
+                    <h2>Network Leak Assessment</h2>
                   </div>
-                  <span className="model-tag">ISO-FOREST + RANDOM FOREST</span>
+                  <span className="model-tag">PRESSURE & FLOW ANALYSIS</span>
                 </div>
                 <p className="lead-copy">
-                  Analyzes current hydraulic sensor deviations against trained baseline covariance to detect
-                  abrupt leaks, predict orifice discharge volume, and isolate suspect coordinates.
+                  Compares current sensor readings with network baselines to identify leaks, estimate water loss,
+                  and locate likely source junctions.
                 </p>
 
                 <div className="diagnostics-action-bar">
@@ -2304,7 +2317,7 @@ function App() {
                     disabled={!state || operation !== null}
                   >
                     <Icon name="scan" size={18} />
-                    {operation === 'detect' ? 'Running Model Inference...' : 'Run Leak Diagnostics Now'}
+                    {operation === 'detect' ? 'Assessing Network...' : 'Run Leak Diagnostics'}
                   </button>
                   <button
                     type="button"
@@ -2320,8 +2333,8 @@ function App() {
                 {detection && (
                   <div className="model-meta-strip">
                     <div>
-                      <span>Detector Algorithm:</span>
-                      <strong>{detection.detector_model}</strong>
+                      <span>Assessment Method:</span>
+                      <strong>Hydraulic sensor analysis</strong>
                     </div>
                     <div>
                       <span>Anomaly Score:</span>
@@ -2356,14 +2369,14 @@ function App() {
                             detection.estimated_leak_rate_lph,
                             0
                           )} L/h.`
-                          : 'All sensor nodes report pressures within the 95th percentile confidence interval of EPANET Net3 baseline.'}
+                          : 'All sensor nodes report pressures within the expected EPANET Net3 baseline range.'}
                       </p>
                     </div>
                   </div>
                 ) : (
                   <div className="diagnostic-empty">
                     <Icon name="scan" size={28} />
-                    <p>Click "Run Leak Diagnostics" to execute inference across all sensor pressure readings.</p>
+                    <p>Select "Run Leak Diagnostics" to review pressure readings across the network.</p>
                   </div>
                 )}
               </article>
@@ -2374,10 +2387,10 @@ function App() {
                 <article className="panel suspects-card">
                   <div className="panel-heading">
                     <div>
-                      <div className="eyebrow">LOCALIZATION MODEL</div>
+                      <div className="eyebrow">LEAK SOURCE RANKING</div>
                       <h2>Top Suspected Junctions</h2>
                     </div>
-                    <span className="chip chip--amber">RANDOM FOREST CLASSIFIER</span>
+                    <span className="chip chip--amber">LIKELY SOURCE LOCATIONS</span>
                   </div>
 
                   <div className="suspect-ranking-list">
@@ -2683,38 +2696,38 @@ function App() {
           </section>
         )}
 
-        {/* TAB 4: AUTONOMOUS AI AGENT */}
+        {/* TAB 4: OPERATIONS SUPPORT */}
         {activeTab === 'agent' && (
           <section className="agent-view">
             <div className="agent-grid">
               <article className="panel agent-prompt-card">
                 <div className="panel-heading">
                   <div>
-                    <div className="eyebrow">AUTONOMOUS OPERATIONS COPILOT</div>
-                    <h2>NirX AI Operations Agent</h2>
+                    <div className="eyebrow">INCIDENT REVIEW & RESPONSE GUIDANCE</div>
+                    <h2>Operations Decision Support</h2>
                   </div>
-                  <span className="model-tag">REASONING AGENT · v1</span>
+                  <span className="model-tag">OPERATOR SUPPORT</span>
                 </div>
                 <p className="lead-copy">
-                  Performs autonomous multi-step reasoning: evaluates hydraulic deficits, cross-examines ML
-                  localization probabilities, inspects critical hospital zones, and issues containment action plans.
+                  Review hydraulic pressure, leak location results, and critical facility impacts to prepare
+                  containment options for operator review.
                 </p>
 
                 <form onSubmit={handleAgent} className="agent-form">
                   <div className="form-group">
-                    <label htmlFor="agent-query">Operator Directive / Prompt</label>
+                    <label htmlFor="agent-query">Incident or Operations Request</label>
                     <textarea
                       id="agent-query"
                       rows={3}
                       value={agentPrompt}
                       onChange={(e) => setAgentPrompt(e.target.value)}
-                      placeholder="Ask the operations agent to diagnose or formulate containment..."
+                      placeholder="Describe the incident or response question..."
                       disabled={operation !== null}
                     />
                   </div>
 
                   <div className="quick-presets">
-                    <span>Quick Directives:</span>
+                    <span>Common Requests:</span>
                     <div className="preset-buttons">
                       <button
                         type="button"
@@ -2752,8 +2765,8 @@ function App() {
                     className="button button--primary button--full button--lg"
                     disabled={operation !== null}
                   >
-                    <Icon name="bot" size={18} />
-                    {operation === 'agent' ? 'Agent Deliberating...' : 'Query Autonomous Agent'}
+                    <Icon name="activity" size={18} />
+                    {operation === 'agent' ? 'Reviewing Incident...' : 'Review Incident'}
                   </button>
                 </form>
               </article>
@@ -2761,12 +2774,12 @@ function App() {
               <article className="panel agent-response-card">
                 <div className="panel-heading">
                   <div>
-                    <div className="eyebrow">CHAIN-OF-THOUGHT TRACE</div>
-                    <h2>Agent Execution Log</h2>
+                    <div className="eyebrow">OPERATIONS REVIEW LOG</div>
+                    <h2>Review Activity</h2>
                   </div>
                   {agentResult && (
                     <span className="status-pill status-pill--normal">
-                      {agentResult.agent_id} · {agentResult.status}
+                      {agentResult.status}
                     </span>
                   )}
                 </div>
@@ -2784,7 +2797,7 @@ function App() {
                     </div>
 
                     <div className="trace-timeline">
-                      <h4>Multi-Step Reasoning Trace</h4>
+                      <h4>Review Steps</h4>
                       {agentResult.reasoning_trace.map((step) => (
                         <div className="trace-item" key={step.step}>
                           <div className="trace-step-indicator">
@@ -2817,8 +2830,8 @@ function App() {
                   </div>
                 ) : (
                   <div className="diagnostic-empty">
-                    <Icon name="bot" size={28} />
-                    <p>Enter an operator directive and click "Query Autonomous Agent" to view reasoning chain.</p>
+                    <Icon name="activity" size={28} />
+                    <p>Describe an incident and select "Review Incident" to view the assessment steps.</p>
                   </div>
                 )}
               </article>
@@ -3091,15 +3104,15 @@ function App() {
           </section>
         )}
 
-        {/* TAB 6: AI-POWERED WORK ORDERS */}
+        {/* TAB 6: FIELD WORK ORDERS */}
         {activeTab === 'workorders' && (
           <section className="tab-section workorders-section">
             <div className="section-header-row">
               <div>
-                <div className="eyebrow">AUTONOMOUS INCIDENT DISPATCH & TICKETING</div>
-                <h2>AI-Powered Field Work Orders</h2>
+                <div className="eyebrow">INCIDENT DISPATCH & TICKETING</div>
+                <h2>Field Work Orders</h2>
                 <p className="section-sub">
-                  Self-generating maintenance tickets synthesized from hydraulic pressure anomalies, WNTR simulation models, and ML suspect localization.
+                  Create and track maintenance work orders using pressure alerts, network simulations, and leak source assessments.
                 </p>
               </div>
               <div className="section-actions">
@@ -3278,7 +3291,7 @@ function App() {
                           <p className="wo-desc">{wo.problem_description}</p>
                           <div className="wo-item-foot">
                             <span className="wo-time">{formatTime(wo.created_at)}</span>
-                            {wo.auto_generated && <span className="ai-badge">AI AUTO-DISPATCH</span>}
+                            {wo.auto_generated && <span className="work-order-system-badge">SYSTEM GENERATED</span>}
                           </div>
                         </div>
                       )
@@ -3363,22 +3376,22 @@ function App() {
                         </div>
                       </div>
 
-                      {/* AI Root Cause & Diagnostics */}
-                      <div className="dossier-box ai-diagnostics-box">
+                      {/* Incident Assessment & Diagnostics */}
+                      <div className="dossier-box incident-assessment-box">
                         <h4>
-                          <Icon name="bot" size={16} /> AI Diagnostic Analysis
+                          <Icon name="activity" size={16} /> Incident Assessment
                         </h4>
-                        <div className="ai-field">
-                          <span className="ai-label">PROBLEM STATEMENT</span>
+                        <div className="incident-field">
+                          <span className="incident-label">PROBLEM STATEMENT</span>
                           <p>{selectedWO.problem_description}</p>
                         </div>
-                        <div className="ai-field">
-                          <span className="ai-label">SUSPECTED ROOT CAUSE</span>
+                        <div className="incident-field">
+                          <span className="incident-label">SUSPECTED ROOT CAUSE</span>
                           <p>{selectedWO.suspected_cause}</p>
                         </div>
-                        <div className="ai-field">
-                          <span className="ai-label">RECOMMENDED CREW PROCEDURE</span>
-                          <p className="ai-action-text">{selectedWO.recommended_action}</p>
+                        <div className="incident-field">
+                          <span className="incident-label">RECOMMENDED CREW PROCEDURE</span>
+                          <p className="incident-action-text">{selectedWO.recommended_action}</p>
                         </div>
                       </div>
 
@@ -3427,7 +3440,7 @@ function App() {
                 ) : (
                   <div className="wo-detail-empty">
                     <Icon name="clipboard" size={32} />
-                    <p>Select a work order from the queue to view AI diagnosis, telemetry telemetry, and crew directives.</p>
+                    <p>Select a work order to review incident details, sensor readings, and crew instructions.</p>
                   </div>
                 )}
               </div>
@@ -3700,7 +3713,7 @@ function App() {
         )}
 
         <footer className="footer">
-          <span>NirX · WATER INFRASTRUCTURE INTELLIGENCE</span>
+          <span>NirX · WATER INFRASTRUCTURE OPERATIONS</span>
           <span>
             NET3 DIGITAL TWIN <i /> {network?.summary.total_nodes ?? '—'} NODES <i />{' '}
             {network?.summary.total_sensors ?? '—'} SENSORS <i />{' '}

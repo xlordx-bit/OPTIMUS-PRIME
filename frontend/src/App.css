@@ -2076,7 +2076,7 @@ tbody tr:last-child td {
 }
 
 /* ==========================================================================
-   ML Diagnostics View
+   Network Diagnostics View
    ========================================================================== */
 .diagnostics-view,
 .whatif-view,
@@ -2519,7 +2519,7 @@ tbody tr:last-child td {
 }
 
 /* ==========================================================================
-   AI Operations Agent View
+   Operations Decision Support View
    ========================================================================== */
 .verdict-banner {
   display: flex;
@@ -2706,6 +2706,95 @@ tbody tr:last-child td {
   gap: 10px;
 }
 
+/* Shared application action buttons */
+.btn {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #F4FAFC;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.btn svg {
+  flex: 0 0 auto;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  color: #07131C;
+  border-color: #00E5C3;
+  background: #00E5C3;
+}
+
+.btn--primary:hover:not(:disabled) {
+  border-color: #35D9C0;
+  background: #35D9C0;
+  box-shadow: 0 0 12px rgba(0, 229, 195, 0.18);
+}
+
+.btn--secondary {
+  color: #D8E5E7;
+  border-color: #23414C;
+  background: #102733;
+}
+
+.btn--secondary:hover:not(:disabled) {
+  color: #F4FAFC;
+  border-color: #00BFA6;
+  background: #153541;
+}
+
+.btn--outline {
+  color: #A3BAC4;
+  border-color: #23414C;
+  background: transparent;
+}
+
+.btn--outline:hover:not(:disabled) {
+  color: #00E5C3;
+  border-color: #00BFA6;
+  background: rgba(0, 229, 195, 0.06);
+}
+
+.btn--success {
+  color: #07131C;
+  border-color: #35D99A;
+  background: #35D99A;
+}
+
+.btn--warning {
+  color: #07131C;
+  border-color: #FFB547;
+  background: #FFB547;
+}
+
+.btn--sm {
+  min-height: 30px;
+  padding: 6px 9px;
+  font-size: 10px;
+}
+
+.btn--xs {
+  min-height: 26px;
+  padding: 4px 7px;
+  font-size: 9px;
+}
+
 /* Monitoring KPIs */
 .monitoring-kpi-grid {
   display: grid;
@@ -2795,14 +2884,25 @@ tbody tr:last-child td {
 /* Monitoring Main Layout */
 .monitoring-main-grid {
   display: grid;
-  grid-template-columns: 1.25fr 1fr;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
   gap: 18px;
 }
 
+@media (max-width: 1024px) {
+  .monitoring-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .monitoring-left-col {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+.monitoring-right-col {
+  min-width: 0;
 }
 
 /* Telemetry SVG Chart */
@@ -3025,17 +3125,21 @@ tbody tr:last-child td {
 
 /* Sensor Roster Table */
 .sensor-roster-panel {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
 .sensor-table-wrap {
+  width: 100%;
   overflow-x: auto;
 }
 
 .sensor-table {
   width: 100%;
+  min-width: 640px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 12px;
 }
@@ -3048,12 +3152,45 @@ tbody tr:last-child td {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
 .sensor-table td {
   padding: 10px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   color: #d8e5e7;
+  white-space: nowrap;
+}
+
+.sensor-table th:nth-child(1),
+.sensor-table td:nth-child(1) {
+  width: 31%;
+}
+
+.sensor-table th:nth-child(2),
+.sensor-table td:nth-child(2) {
+  width: 16%;
+}
+
+.sensor-table th:nth-child(3),
+.sensor-table td:nth-child(3),
+.sensor-table th:nth-child(4),
+.sensor-table td:nth-child(4) {
+  width: 13%;
+}
+
+.sensor-table th:nth-child(5),
+.sensor-table td:nth-child(5) {
+  width: 15%;
+}
+
+.sensor-table th:nth-child(6),
+.sensor-table td:nth-child(6) {
+  width: 12%;
+}
+
+.sensor-table .sensor-row {
+  display: table-row;
 }
 
 .sensor-row {
@@ -3072,12 +3209,19 @@ tbody tr:last-child td {
 
 .sensor-name strong {
   display: block;
+  overflow: hidden;
   color: #eff8f6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sensor-name small {
+  display: block;
+  overflow: hidden;
   color: #69818a;
   font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .val-main {
@@ -3116,7 +3260,7 @@ tbody tr:last-child td {
 }
 
 /* ==========================================================================
-   Feature 2: AI Work Orders Styles
+   Feature 2: Field Work Orders Styles
    ========================================================================== */
 .wo-kpi-grid {
   display: grid;
@@ -3291,7 +3435,7 @@ tbody tr:last-child td {
   color: #718B96;
 }
 
-.ai-badge {
+.work-order-system-badge {
   font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -3355,20 +3499,20 @@ tbody tr:last-child td {
   color: #eff8f6;
 }
 
-.ai-field {
+.incident-field {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.ai-label {
+.incident-label {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.1em;
   color: #6a838b;
 }
 
-.ai-action-text {
+.incident-action-text {
   color: #54d6ad;
   font-weight: 600;
 }
@@ -3814,7 +3958,9 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   background: rgba(7, 17, 22, 0.6);
   flex-shrink: 0;
 }
@@ -4024,7 +4170,11 @@ tbody tr:last-child td {
 }
 
 .summary-callout-icon {
-  font-size: 24px;
+  color: var(--aqua);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .summary-callout-label {
@@ -4305,7 +4455,12 @@ tbody tr:last-child td {
 }
 
 .fac-type-icon {
-  font-size: 20px;
+  min-width: 76px;
+  color: #a3bac4;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
 }
 
 .fac-card-top strong {
@@ -4462,7 +4617,10 @@ tbody tr:last-child td {
 }
 
 .wq-advisory-icon {
-  font-size: 26px;
+  color: #eff8f6;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
 }
 
 .wq-advisory-tag-row {
@@ -4596,7 +4754,7 @@ tbody tr:last-child td {
   margin-top: 2px;
 }
 
-.ml-status-hero {
+.assessment-status-hero {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -4606,32 +4764,32 @@ tbody tr:last-child td {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.ml-classification-pill {
+.assessment-classification-pill {
   font-size: 13px;
   color: #eff8f6;
 }
 
-.ml-classification-pill strong {
+.assessment-classification-pill strong {
   color: var(--aqua);
 }
 
-.ml-confidence-score {
+.assessment-score {
   font-size: 13px;
   color: #eff8f6;
 }
 
-.ml-confidence-score strong {
+.assessment-score strong {
   color: #22c55e;
 }
 
-.ml-distinction-note {
+.assessment-distinction-note {
   margin: 4px 0 0;
   font-size: 11.5px;
   color: #8da4ac;
   line-height: 1.4;
 }
 
-.ml-feature-indicators {
+.assessment-feature-indicators {
   display: flex;
   flex-direction: column;
   gap: 8px;

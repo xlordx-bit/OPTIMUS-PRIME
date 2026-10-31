@@ -39,7 +39,7 @@ export const PublicAdvisoryBanner: React.FC<PublicAdvisoryProps> = ({
       <div className="advisory-left">
         <div className="advisory-icon-wrapper" style={{ borderColor: badgeColor, color: badgeColor }}>
           <span className="advisory-beacon" style={{ background: badgeColor }} />
-          ⚠️
+          ALERT
         </div>
         <div className="advisory-content">
           <div className="advisory-title-row">

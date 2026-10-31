@@ -145,6 +145,11 @@ export type SewerMapData = {
   }[]
 }
 
+export type MapFocusRequest = {
+  nodeId: string
+  requestId: number
+}
+
 interface Network3DMapProps {
   network: NetworkResponse | null
   state: NetworkState | null
@@ -157,6 +162,7 @@ interface Network3DMapProps {
   onToggleFullScreen?: () => void
   waterQualityData?: ContaminationMapData | null
   sewerData?: SewerMapData | null
+  focusRequest?: MapFocusRequest | null
 }
 
 const MAPTILER_KEY = (import.meta.env.VITE_MAPTILER_API_KEY as string | undefined)?.trim() || ''
@@ -180,6 +186,7 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
   onToggleFullScreen,
   waterQualityData,
   sewerData,
+  focusRequest,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -442,54 +449,77 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
 
       map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right')
 
-      try {
-        const layers = map.getStyle().layers || []
-        const labelLayer = layers.find(
-          (l) => l.type === 'symbol' && l.layout && 'text-field' in l.layout
-        )
-        const labelLayerId = labelLayer ? labelLayer.id : undefined
+      const styleLayers = map.getStyle().layers || []
+      const labelLayer = styleLayers.find(
+        (layer) => layer.type === 'symbol' && layer.layout && 'text-field' in layer.layout
+      )
+      const buildingLayer = styleLayers.reduce<{ source: string; sourceLayer: string } | null>(
+        (found, layer) => {
+          if (
+            found ||
+            (layer.type !== 'fill' && layer.type !== 'fill-extrusion') ||
+            !('source' in layer) ||
+            !('source-layer' in layer) ||
+            typeof layer.source !== 'string' ||
+            typeof layer['source-layer'] !== 'string' ||
+            !/building/i.test(layer['source-layer'])
+          ) {
+            return found
+          }
+          return { source: layer.source, sourceLayer: layer['source-layer'] }
+        },
+        null
+      )
 
-        const sources = map.getStyle().sources || {}
-        let buildingSource = 'carto'
-        if ('maptiler_planet' in sources) buildingSource = 'maptiler_planet'
-        else if ('openmaptiles' in sources) buildingSource = 'openmaptiles'
-        else if ('composite' in sources) buildingSource = 'composite'
-        else if ('carto' in sources) buildingSource = 'carto'
-
-        if (!map.getLayer('3d-buildings') && map.getSource(buildingSource)) {
+      if (buildingLayer && map.getSource(buildingLayer.source)) {
+        try {
           map.addLayer(
             {
               id: '3d-buildings',
-              source: buildingSource,
-              'source-layer': 'building',
+              source: buildingLayer.source,
+              'source-layer': buildingLayer.sourceLayer,
               type: 'fill-extrusion',
               minzoom: 13,
               paint: {
-                'fill-extrusion-color': '#0d1a21',
-                'fill-extrusion-height': ['coalesce', ['get', 'render_height'], ['get', 'height'], 18],
-                'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], ['get', 'min_height'], 0],
-                'fill-extrusion-opacity': 0.75,
+                'fill-extrusion-color': '#294653',
+                'fill-extrusion-height': [
+                  'coalesce',
+                  ['to-number', ['get', 'render_height']],
+                  ['to-number', ['get', 'height']],
+                  14,
+                ],
+                'fill-extrusion-base': [
+                  'coalesce',
+                  ['to-number', ['get', 'render_min_height']],
+                  ['to-number', ['get', 'min_height']],
+                  0,
+                ],
+                'fill-extrusion-opacity': 0.9,
+                'fill-extrusion-vertical-gradient': true,
               },
             },
-            labelLayerId
+            labelLayer?.id
           )
+        } catch (error) {
+          console.error('Unable to add 3D building layer:', error)
+          setMapError('3D building layer could not be added.')
         }
+      } else {
+        setMapError('3D building data is unavailable in the selected map style.')
+      }
 
-        // Add Realistic 3D Terrain Elevation if MapTiler key is active
-        if (MAPTILER_KEY && !map.getSource('maptiler-terrain')) {
-          try {
-            map.addSource('maptiler-terrain', {
-              type: 'raster-dem',
-              url: `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${MAPTILER_KEY}`,
-              tileSize: 256,
-            })
-            map.setTerrain({ source: 'maptiler-terrain', exaggeration: 1.25 })
-          } catch {
-            // Safe fallback if raster-dem is not supported by client GPU
-          }
+      // Add Realistic 3D Terrain Elevation if MapTiler key is active
+      if (MAPTILER_KEY && !map.getSource('maptiler-terrain')) {
+        try {
+          map.addSource('maptiler-terrain', {
+            type: 'raster-dem',
+            url: `https://api.maptiler.com/tiles/terrain-rgb-v2/tiles.json?key=${MAPTILER_KEY}`,
+            tileSize: 256,
+          })
+          map.setTerrain({ source: 'maptiler-terrain', exaggeration: 1.25 })
+        } catch {
+          // Terrain elevation is optional; the vector map remains usable without it.
         }
-      } catch {
-        // Safe fallback
       }
 
       // Add Pipeline Source
@@ -985,6 +1015,21 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
     }
   }, [selectedNode, nodeLookup, mapLoaded])
 
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded || !focusRequest) return
+    const node = nodeLookup.get(focusRequest.nodeId)
+    if (!node?.lat_lng || node.lat_lng.length !== 2) return
+
+    setInspectedNodeId(node.id)
+    mapRef.current.flyTo({
+      center: [node.lat_lng[1], node.lat_lng[0]],
+      zoom: 17.5,
+      pitch: 60,
+      duration: 1100,
+      essential: true,
+    })
+  }, [focusRequest, nodeLookup, mapLoaded])
+
   const inspectedNode = useMemo(() => {
     const id = inspectedNodeId || selectedNode
     if (!id) return null
@@ -1020,7 +1065,7 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
           {mapError && <span className="hud-pill hud-pill--alert">{mapError}</span>}
           {state?.is_leak_injected && (
             <span className="hud-pill hud-pill--alert">
-              ⚠️ LEAK AT JUNCTION {state.active_leak?.node_id}
+              ACTIVE LEAK AT JUNCTION {state.active_leak?.node_id}
             </span>
           )}
         </div>
@@ -1066,12 +1111,19 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
           type="button"
           className={`nav-ctrl-btn ${isOrbiting ? 'nav-ctrl-btn--active' : ''}`}
           onClick={toggleOrbit}
+          aria-label="Toggle orbit"
           title="Toggle Cinematic Orbit Camera"
         >
-          🌐
+          O
         </button>
-        <button type="button" className="nav-ctrl-btn" onClick={handleResetCamera} title="Reset Camera Center">
-          🎯
+        <button
+          type="button"
+          className="nav-ctrl-btn"
+          onClick={handleResetCamera}
+          aria-label="Reset camera center"
+          title="Reset Camera Center"
+        >
+          R
         </button>
       </div>
 
@@ -1201,7 +1253,7 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
         <div className="map3d-hud map3d-hud--suspects">
           <div className="hud-glass-panel">
             <div className="hud-panel-title">
-              <span style={{ color: '#f59e0b' }}>⚠️ TOP-3 SUSPECT LOCATIONS</span>
+              <span style={{ color: '#f59e0b' }}>TOP-3 LIKELY SOURCE LOCATIONS</span>
             </div>
             <div className="suspect-quick-list">
               {detection.top_suspects.map((s) => (
@@ -1329,10 +1381,10 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
               {inspectedNode.suspect && (
                 <div className="card-stat card-stat--full" style={{ background: 'rgba(245, 158, 11, 0.1)' }}>
                   <span className="card-stat-label" style={{ color: '#f59e0b' }}>
-                    ML LOCALIZATION SUSPECT #{inspectedNode.suspect.rank}
+                    SOURCE CANDIDATE #{inspectedNode.suspect.rank}
                   </span>
                   <strong className="card-stat-val" style={{ color: '#fbbf24' }}>
-                    {(inspectedNode.suspect.probability * 100).toFixed(1)}% Confidence
+                    {(inspectedNode.suspect.probability * 100).toFixed(1)}% Likelihood
                   </strong>
                 </div>
               )}
