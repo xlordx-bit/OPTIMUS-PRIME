@@ -420,23 +420,21 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
         data: nodesGeoJSON,
       })
 
-      // Junctions dots
+      // Regular Junctions dots (excluding sensors)
       map.addLayer({
         id: 'junctions-layer',
         type: 'circle',
         source: 'nodes-source',
-        filter: ['==', ['get', 'type'], 'junction'],
+        filter: ['all', ['==', ['get', 'type'], 'junction'], ['!=', ['get', 'is_sensor'], true]],
         paint: {
-          'circle-radius': ['case', ['get', 'is_sensor'], 6.5, 3.2],
+          'circle-radius': 3.2,
           'circle-color': [
             'case',
             ['get', 'is_leak'],
             '#ef4444',
-            ['get', 'is_sensor'],
-            '#38bdf8',
             '#64748b',
           ],
-          'circle-stroke-width': ['case', ['get', 'is_sensor'], 2.5, 1],
+          'circle-stroke-width': 1,
           'circle-stroke-color': '#071116',
           'circle-opacity': 0.95,
         },
@@ -447,7 +445,7 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
         id: 'sensors-glow-layer',
         type: 'circle',
         source: 'nodes-source',
-        filter: ['==', ['get', 'is_sensor'], true],
+        filter: ['all', ['==', ['get', 'type'], 'junction'], ['==', ['get', 'is_sensor'], true]],
         paint: {
           'circle-radius': 14,
           'circle-color': [
@@ -461,6 +459,26 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
           ],
           'circle-opacity': 0.45,
           'circle-blur': 0.85,
+        },
+      })
+
+      // Telemetry Sensors Core Layer
+      map.addLayer({
+        id: 'sensors-layer',
+        type: 'circle',
+        source: 'nodes-source',
+        filter: ['all', ['==', ['get', 'type'], 'junction'], ['==', ['get', 'is_sensor'], true]],
+        paint: {
+          'circle-radius': 6.5,
+          'circle-color': [
+            'case',
+            ['get', 'is_leak'],
+            '#ef4444',
+            ['match', ['get', 'status'], 'CRITICAL', '#ef4444', 'WARNING', '#f59e0b', '#38bdf8'],
+          ],
+          'circle-stroke-width': 2.5,
+          'circle-stroke-color': '#071116',
+          'circle-opacity': 0.95,
         },
       })
 
@@ -486,6 +504,12 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
       map.on('mouseleave', 'junctions-layer', () => {
         map.getCanvas().style.cursor = ''
       })
+      map.on('mouseenter', 'sensors-layer', () => {
+        map.getCanvas().style.cursor = 'pointer'
+      })
+      map.on('mouseleave', 'sensors-layer', () => {
+        map.getCanvas().style.cursor = ''
+      })
       map.on('mouseenter', 'tanks-layer', () => {
         map.getCanvas().style.cursor = 'pointer'
       })
@@ -494,6 +518,13 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
       })
 
       map.on('click', 'junctions-layer', (e: maplibregl.MapLayerMouseEvent) => {
+        if (!e.features || !e.features[0] || !e.features[0].properties) return
+        const id = String(e.features[0].properties.id)
+        setInspectedNodeId(id)
+        onSelectNode(id)
+      })
+
+      map.on('click', 'sensors-layer', (e: maplibregl.MapLayerMouseEvent) => {
         if (!e.features || !e.features[0] || !e.features[0].properties) return
         const id = String(e.features[0].properties.id)
         setInspectedNodeId(id)
@@ -618,6 +649,9 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
     if (map.getLayer('junctions-layer')) {
       map.setLayoutProperty('junctions-layer', 'visibility', layerFilters.junctions ? 'visible' : 'none')
     }
+    if (map.getLayer('sensors-layer')) {
+      map.setLayoutProperty('sensors-layer', 'visibility', layerFilters.sensors ? 'visible' : 'none')
+    }
     if (map.getLayer('sensors-glow-layer')) {
       map.setLayoutProperty('sensors-glow-layer', 'visibility', layerFilters.sensors ? 'visible' : 'none')
     }
@@ -630,6 +664,9 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
     if (pulseMarkerRef.current) {
       pulseMarkerRef.current.getElement().style.display = layerFilters.leaks ? 'block' : 'none'
     }
+    suspectMarkersRef.current.forEach((m) => {
+      m.getElement().style.display = layerFilters.leaks ? 'block' : 'none'
+    })
   }, [layerFilters, mapLoaded])
 
   // Camera Actions
