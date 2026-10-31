@@ -1526,11 +1526,11 @@ function App() {
             e.preventDefault()
             setActiveTab('overview')
           }}
-          aria-label="JALNETRA Water Infrastructure Intelligence"
+          aria-label="NirX Water Infrastructure Intelligence"
           title="Return to Digital Twin Network Overview"
         >
           <div className="brand-wordmark-wrap">
-            <span className="brand-wordmark">JALNETRA</span>
+            <span className="brand-wordmark">NirX</span>
             <span className="brand-sub">WATER INFRASTRUCTURE INTELLIGENCE</span>
           </div>
         </a>
@@ -1606,7 +1606,7 @@ function App() {
         <section className="page-heading page-heading--operational" id="overview">
           <div className="op-header-left">
             <div className="op-hierarchy">
-              <span className="op-org">JALNETRA</span>
+              <span className="op-org">NirX</span>
               <span className="op-sep">/</span>
               <span className="op-section">NETWORK OPERATIONS</span>
             </div>
@@ -3700,7 +3700,7 @@ function App() {
         )}
 
         <footer className="footer">
-          <span>JALNETRA · WATER INFRASTRUCTURE INTELLIGENCE</span>
+          <span>NirX · WATER INFRASTRUCTURE INTELLIGENCE</span>
           <span>
             NET3 DIGITAL TWIN <i /> {network?.summary.total_nodes ?? '—'} NODES <i />{' '}
             {network?.summary.total_sensors ?? '—'} SENSORS <i />{' '}
