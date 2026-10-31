@@ -119,8 +119,160 @@ type AgentResponse = {
   suggested_actions: string[]
 }
 
-type Operation = 'inject' | 'reset' | 'detect' | 'whatif' | 'agent' | null
-type ActiveTab = 'overview' | 'diagnostics' | 'whatif' | 'agent'
+type Operation = 'inject' | 'reset' | 'detect' | 'whatif' | 'agent' | 'wo_update' | 'valve' | 'sim_run' | 'sim_reset' | null
+type ActiveTab = 'overview' | 'diagnostics' | 'whatif' | 'agent' | 'monitoring' | 'workorders' | 'valvesim'
+
+// ── Monitoring Types ──────────────────────────────────────────────────────────
+type MonitoringOverview = {
+  timestamp: string
+  is_healthy: boolean
+  is_simulated: boolean
+  average_pressure_psi: number
+  average_pressure_m: number
+  average_flow_lmin: number
+  total_sensors: number
+  normal_sensors: number
+  warning_sensors: number
+  critical_sensors: number
+  total_leakage_lph: number
+  max_pressure_drop_m: number
+  active_alert_count: number
+  thresholds: { pressure_warning_psi: number; pressure_critical_psi: number; flow_warning_lmin: number; flow_critical_lmin: number }
+}
+
+type MonitoringSensor = {
+  sensor_id: string
+  label: string
+  zone: string
+  status: string
+  current_pressure_psi: number
+  current_pressure_m: number
+  baseline_pressure_psi: number
+  pressure_drop_psi: number
+  flow_lmin: number
+  is_simulated: boolean
+  lat_lng: number[]
+}
+
+type SensorHistoryPoint = {
+  timestamp: string
+  timestamp_unix: number
+  pressure_psi: number
+  pressure_m: number
+  flow_lmin: number
+  sensor_id: string
+}
+
+type MonitoringAlert = {
+  alert_id: string
+  timestamp: string
+  sensor_id: string
+  label: string
+  type: string
+  message: string
+  severity: string
+  active: boolean
+}
+
+// ── Work Order Types ──────────────────────────────────────────────────────────
+type WorkOrderItem = {
+  work_order_id: string
+  created_at: string
+  sensor_id: string
+  location: string
+  zone: string
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'
+  incident_type: string
+  problem_description: string
+  suspected_cause: string
+  recommended_action: string
+  current_pressure_psi: number
+  current_pressure_m: number
+  pressure_drop_m: number
+  flow_lmin: number
+  auto_generated: boolean
+  history: { timestamp: string; from_status: string; to_status: string }[]
+}
+
+type WOSummary = {
+  total: number
+  critical: number
+  high: number
+  medium: number
+  low: number
+  pending: number
+  in_progress: number
+  completed: number
+}
+
+// ── Valve Simulation Types ────────────────────────────────────────────────────
+type SimNode = {
+  id: string
+  type: string
+  coordinates: { x: number; y: number }
+  lat_lng: number[]
+  pressure_m: number
+  pressure_psi: number
+  status: string
+  is_sensor: boolean
+  label: string
+  disconnected?: boolean
+}
+
+type SimPipe = {
+  id: string
+  start_node: string
+  end_node: string
+  coordinates: number[][]
+  length: number
+  diameter: number
+  valve_id: string | null
+  valve_status: string
+}
+
+type SimValve = {
+  valve_id: string
+  pipe_id: string
+  start_node: string
+  end_node: string
+  status: string
+  coordinates: { x: number; y: number }
+}
+
+type SimNetwork = {
+  nodes: SimNode[]
+  pipes: SimPipe[]
+  valves: SimValve[]
+  sensor_node_ids: string[]
+}
+
+type SimResult = {
+  simulation_type: string
+  disclaimer: string
+  closed_valves: string[]
+  closed_pipes: string[]
+  disconnected_junctions: string[]
+  affected_junction_count: number
+  sensor_impacts: {
+    sensor_id: string
+    label: string
+    old_pressure_psi: number
+    new_pressure_psi: number
+    pressure_change_psi: number
+    post_sim_status: string
+    disconnected: boolean
+  }[]
+  network_summary: {
+    avg_pressure_before_psi: number
+    avg_pressure_after_psi: number
+    avg_flow_before_lmin: number
+    avg_flow_after_lmin: number
+    flow_reduction_pct: number
+    disconnected_zone_count: number
+  }
+  updated_nodes: SimNode[]
+}
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const endpoints = [
@@ -200,6 +352,12 @@ function Icon({
     | 'bot'
     | 'zap'
     | 'clipboard'
+    | 'gauge'
+    | 'wrench'
+    | 'valve'
+    | 'chart'
+    | 'x'
+    | 'play'
   size?: number
 }) {
   const paths: Record<string, React.ReactNode> = {
@@ -266,6 +424,31 @@ function Icon({
         <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
       </>
     ),
+    gauge: (
+      <>
+        <path d="M12 2a10 10 0 1 0 10 10" />
+        <path d="M12 12 16 8" />
+        <circle cx="12" cy="12" r="2" />
+      </>
+    ),
+    wrench: (
+      <>
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+      </>
+    ),
+    valve: (
+      <>
+        <path d="M4 12h16M8 8v8M16 8v8" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    ),
+    chart: (
+      <>
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </>
+    ),
+    x: <path d="M18 6 6 18M6 6l12 12" />,
+    play: <polygon points="5 3 19 12 5 21 5 3" />,
   }
 
   return (
@@ -464,6 +647,139 @@ function NetworkMap({
   )
 }
 
+const SENSOR_LABELS: Record<string, string> = {
+  '10': 'Intake Zone A',
+  '15': 'District North',
+  '105': 'Residential B',
+  '117': 'Junction Hub 117',
+  '123': 'Industrial Sector',
+  '129': 'District East',
+  '149': 'Park Zone',
+  '181': 'Hospital Wing',
+  '195': 'Commerce Centre',
+  '206': 'Pump Station Out',
+  '217': 'Elevated Tank Feed',
+  '247': 'Reservoir Outlet',
+}
+
+function PressureChart({
+  history,
+  sensorLabel,
+  baselinePsi,
+  warnThreshold = 55,
+  critThreshold = 40,
+}: {
+  history: SensorHistoryPoint[]
+  sensorLabel: string
+  baselinePsi: number
+  warnThreshold?: number
+  critThreshold?: number
+}) {
+  if (!history || history.length === 0) {
+    return (
+      <div className="telemetry-chart-container">
+        <div className="chart-empty">No telemetry history recorded for this sensor.</div>
+      </div>
+    )
+  }
+
+  const pressures = history.map((p) => p.pressure_psi)
+  const allVals = [...pressures, baselinePsi, warnThreshold, critThreshold]
+  const minVal = Math.max(0, Math.floor(Math.min(...allVals) - 5))
+  const maxVal = Math.ceil(Math.max(...allVals) + 5)
+  const range = Math.max(maxVal - minVal, 1)
+
+  const width = 640
+  const height = 220
+  const padLeft = 45
+  const padRight = 20
+  const padTop = 20
+  const padBottom = 30
+  const chartW = width - padLeft - padRight
+  const chartH = height - padTop - padBottom
+
+  const getY = (val: number) => padTop + chartH - ((val - minVal) / range) * chartH
+  const getX = (idx: number) => padLeft + (idx / Math.max(history.length - 1, 1)) * chartW
+
+  const pointsStr = history
+    .map((p, i) => `${getX(i).toFixed(1)},${getY(p.pressure_psi).toFixed(1)}`)
+    .join(' ')
+
+  const areaStr = `${pointsStr} ${getX(history.length - 1).toFixed(1)},${(padTop + chartH).toFixed(1)} ${padLeft},${(padTop + chartH).toFixed(1)}`
+
+  const warnY = getY(warnThreshold)
+  const critY = getY(critThreshold)
+  const baseY = getY(baselinePsi)
+
+  return (
+    <div className="telemetry-chart-container">
+      <div className="chart-header">
+        <div>
+          <h4>{sensorLabel} — Pressure Stream (Last 30 Mins)</h4>
+          <span className="chart-sub">Live telemetry curve vs safety boundary thresholds</span>
+        </div>
+        <div className="chart-legend">
+          <span className="legend-item"><i className="legend-line legend-line--stream" /> Live Pressure</span>
+          <span className="legend-item"><i className="legend-line legend-line--baseline" /> Baseline ({baselinePsi.toFixed(1)} PSI)</span>
+          <span className="legend-item"><i className="legend-line legend-line--warn" /> Warning ({warnThreshold} PSI)</span>
+          <span className="legend-item"><i className="legend-line legend-line--crit" /> Critical ({critThreshold} PSI)</span>
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${width} ${height}`} className="telemetry-svg" role="img" aria-label="Pressure chart">
+        <defs>
+          <linearGradient id="pressGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#56dccb" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#56dccb" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+
+        {/* Grid lines */}
+        {[minVal, critThreshold, warnThreshold, Math.round((maxVal + warnThreshold) / 2), maxVal].map((val, idx) => {
+          const y = getY(val)
+          return (
+            <g key={idx}>
+              <line x1={padLeft} y1={y} x2={width - padRight} y2={y} stroke="rgba(255,255,255,0.08)" strokeDasharray="2,2" />
+              <text x={padLeft - 8} y={y + 4} fill="#69818a" fontSize="10" textAnchor="end">{val}</text>
+            </g>
+          )
+        })}
+
+        {/* Threshold lines */}
+        <line x1={padLeft} y1={critY} x2={width - padRight} y2={critY} stroke="#ef4444" strokeWidth="1.5" strokeDasharray="4,4" />
+        <line x1={padLeft} y1={warnY} x2={width - padRight} y2={warnY} stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4,4" />
+        <line x1={padLeft} y1={baseY} x2={width - padRight} y2={baseY} stroke="#0ea5e9" strokeWidth="1" strokeDasharray="3,3" />
+
+        {/* Area fill */}
+        <polygon points={areaStr} fill="url(#pressGrad)" />
+
+        {/* Pressure line */}
+        <polyline points={pointsStr} fill="none" stroke="#56dccb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* Data points */}
+        {history.map((p, i) => (
+          <circle
+            key={i}
+            cx={getX(i)}
+            cy={getY(p.pressure_psi)}
+            r={i === history.length - 1 ? 4.5 : 2.5}
+            fill={i === history.length - 1 ? '#56dccb' : '#071116'}
+            stroke="#56dccb"
+            strokeWidth="1.5"
+          >
+            <title>{`${p.timestamp}: ${p.pressure_psi.toFixed(1)} PSI`}</title>
+          </circle>
+        ))}
+
+        {/* X axis labels */}
+        <text x={padLeft} y={height - 8} fill="#69818a" fontSize="10">-30m</text>
+        <text x={padLeft + chartW / 2} y={height - 8} fill="#69818a" fontSize="10" textAnchor="middle">-15m</text>
+        <text x={width - padRight} y={height - 8} fill="#56dccb" fontSize="10" textAnchor="end" fontWeight="bold">NOW</text>
+      </svg>
+    </div>
+  )
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview')
   const [network, setNetwork] = useState<NetworkResponse | null>(null)
@@ -485,6 +801,31 @@ function App() {
   // AI Agent State
   const [agentPrompt, setAgentPrompt] = useState('What is the optimal containment plan for the current anomaly?')
   const [agentResult, setAgentResult] = useState<AgentResponse | null>(null)
+
+  // Monitoring State
+  const [monOverview, setMonOverview] = useState<MonitoringOverview | null>(null)
+  const [monSensors, setMonSensors] = useState<MonitoringSensor[]>([])
+  const [monAlerts, setMonAlerts] = useState<MonitoringAlert[]>([])
+  const [selectedMonSensor, setSelectedMonSensor] = useState<string>('117')
+  const [sensorHistory, setSensorHistory] = useState<SensorHistoryPoint[]>([])
+  const [monLoading, setMonLoading] = useState(false)
+
+  // Work Orders State
+  const [workOrders, setWorkOrders] = useState<WorkOrderItem[]>([])
+  const [woSummary, setWoSummary] = useState<WOSummary | null>(null)
+  const [selectedWO, setSelectedWO] = useState<WorkOrderItem | null>(null)
+  const [woLoading, setWoLoading] = useState(false)
+  const [manualWOSensor, setManualWOSensor] = useState('117')
+  const [manualWOSeverity, setManualWOSeverity] = useState<'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'>('HIGH')
+  const [manualWODesc, setManualWODesc] = useState('Inspect junction for suspected pipe fissure')
+  const [showManualWOModal, setShowManualWOModal] = useState(false)
+  const [woFilterStatus, setWoFilterStatus] = useState<string>('ALL')
+
+  // Valve Simulation State
+  const [simNetwork, setSimNetwork] = useState<SimNetwork | null>(null)
+  const [simResult, setSimResult] = useState<SimResult | null>(null)
+  const [selectedValve, setSelectedValve] = useState<string | null>(null)
+  const [simLoading, setSimLoading] = useState(false)
 
   const loadNetwork = useCallback(async () => {
     const data = await apiRequest<NetworkResponse>('/network')
@@ -534,6 +875,201 @@ function App() {
     const s = state?.sensors.find((sensor) => sensor.node_id === selectedNode)
     return { node: n, sensor: s }
   }, [network, selectedNode, state])
+
+  // --- Feature 1: Pressure Monitoring Handlers ---
+  const loadMonitoringData = useCallback(async () => {
+    setMonLoading(true)
+    try {
+      const [overview, sensorsRes, alertsRes] = await Promise.all([
+        apiRequest<MonitoringOverview>('/monitoring/overview'),
+        apiRequest<{ sensors: MonitoringSensor[]; count: number }>('/monitoring/sensors'),
+        apiRequest<{ alerts: MonitoringAlert[]; count: number }>('/monitoring/alerts'),
+      ])
+      setMonOverview(overview)
+      setMonSensors(sensorsRes.sensors)
+      setMonAlerts(alertsRes.alerts)
+    } catch (err) {
+      console.error('Monitoring data load failed:', err)
+    } finally {
+      setMonLoading(false)
+    }
+  }, [])
+
+  const loadSensorHistory = useCallback(async (sensorId: string) => {
+    try {
+      const data = await apiRequest<{
+        sensor_id: string
+        points: number
+        history: SensorHistoryPoint[]
+      }>(`/monitoring/sensors/${sensorId}?points=30`)
+      setSensorHistory(data.history || [])
+    } catch (err) {
+      console.error('Sensor history load failed:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'monitoring') {
+      void loadMonitoringData()
+      void loadSensorHistory(selectedMonSensor)
+      const interval = setInterval(() => {
+        void loadMonitoringData()
+      }, 5000)
+      return () => clearInterval(interval)
+    }
+  }, [activeTab, loadMonitoringData, loadSensorHistory, selectedMonSensor])
+
+  const currentMonSensor = useMemo(() => {
+    return monSensors.find((s) => s.sensor_id === selectedMonSensor) || monSensors[0]
+  }, [monSensors, selectedMonSensor])
+
+  // --- Feature 2: Work Orders Handlers ---
+  const loadWorkOrders = useCallback(async () => {
+    setWoLoading(true)
+    try {
+      const data = await apiRequest<{
+        work_orders: WorkOrderItem[]
+        summary: WOSummary
+      }>('/work-orders')
+      setWorkOrders(data.work_orders)
+      setWoSummary(data.summary)
+      if (data.work_orders.length > 0) {
+        setSelectedWO((curr) =>
+          curr
+            ? data.work_orders.find((w) => w.work_order_id === curr.work_order_id) ?? data.work_orders[0]
+            : data.work_orders[0]
+        )
+      }
+    } catch (err) {
+      console.error('Work orders load failed:', err)
+    } finally {
+      setWoLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'workorders') {
+      void loadWorkOrders()
+    }
+  }, [activeTab, loadWorkOrders])
+
+  async function handleUpdateWOStatus(woId: string, newStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED') {
+    setOperation('wo_update')
+    try {
+      const updated = await apiRequest<WorkOrderItem>(`/work-orders/${woId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+      })
+      setWorkOrders((prev) => prev.map((w) => (w.work_order_id === woId ? updated : w)))
+      if (selectedWO?.work_order_id === woId) {
+        setSelectedWO(updated)
+      }
+      void loadWorkOrders()
+      setNotice(`Work order ${woId} moved to ${newStatus}`)
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Failed to update work order')
+    } finally {
+      setOperation(null)
+    }
+  }
+
+  async function handleCreateManualWO(e: FormEvent) {
+    e.preventDefault()
+    try {
+      const created = await apiRequest<WorkOrderItem>('/work-orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          sensor_id: manualWOSensor,
+          severity: manualWOSeverity,
+          problem_description: manualWODesc,
+          incident_type: 'MANUAL_INSPECTION',
+          suspected_cause: 'Field engineer manual request triggered from monitoring interface',
+          recommended_action: 'Conduct ultrasonic leak localization and junction pressure check',
+        }),
+      })
+      setWorkOrders((prev) => [created, ...prev])
+      setSelectedWO(created)
+      setShowManualWOModal(false)
+      void loadWorkOrders()
+      setNotice(`Dispatched Work Order ${created.work_order_id} for Junction ${created.sensor_id}`)
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Failed to create work order')
+    }
+  }
+
+  // --- Feature 3: Valve Simulation Handlers ---
+  const loadValveSim = useCallback(async () => {
+    setSimLoading(true)
+    try {
+      const data = await apiRequest<SimNetwork>('/simulation/network')
+      setSimNetwork(data)
+      if (data.valves.length > 0) {
+        setSelectedValve((curr) => curr ?? data.valves[0].valve_id)
+      }
+    } catch (err) {
+      console.error('Simulation network load failed:', err)
+    } finally {
+      setSimLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'valvesim') {
+      void loadValveSim()
+    }
+  }, [activeTab, loadValveSim])
+
+  async function handleToggleValve(valveId: string, currentStatus: string) {
+    setOperation('valve')
+    try {
+      const nextAction = currentStatus === 'CLOSED' ? 'OPEN' : 'CLOSE'
+      await apiRequest<{
+        valve_id: string
+        action: string
+        new_status: string
+      }>('/simulation/valve', {
+        method: 'POST',
+        body: JSON.stringify({ valve_id: valveId, action: nextAction }),
+      })
+      await loadValveSim()
+      setNotice(`Simulated Valve ${valveId} toggled to ${nextAction === 'CLOSE' ? 'CLOSED' : 'OPEN'} (Digital Twin mode)`)
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Failed to set valve')
+    } finally {
+      setOperation(null)
+    }
+  }
+
+  async function handleRunSim() {
+    setOperation('sim_run')
+    try {
+      const result = await apiRequest<SimResult>('/simulation/run', {
+        method: 'POST',
+      })
+      setSimResult(result)
+      setNotice(`Hydraulic graph propagation complete: ${result.affected_junction_count} junctions evaluated.`)
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Simulation run failed')
+    } finally {
+      setOperation(null)
+    }
+  }
+
+  async function handleResetSim() {
+    setOperation('sim_reset')
+    try {
+      await apiRequest<{ message: string }>('/simulation/reset', {
+        method: 'POST',
+      })
+      setSimResult(null)
+      await loadValveSim()
+      setNotice('All simulated valves restored to default OPEN status.')
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Simulation reset failed')
+    } finally {
+      setOperation(null)
+    }
+  }
 
   // Handle Inject Leak
   async function handleInject(event?: FormEvent) {
@@ -687,6 +1223,34 @@ function App() {
           </button>
           <button
             type="button"
+            className={`tab-btn ${activeTab === 'monitoring' ? 'tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('monitoring')}
+          >
+            <Icon name="gauge" size={15} />
+            <span>Pressure Monitoring</span>
+            {monAlerts.length > 0 && <span className="tab-badge tab-badge--alert">{monAlerts.length}</span>}
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${activeTab === 'workorders' ? 'tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('workorders')}
+          >
+            <Icon name="wrench" size={15} />
+            <span>AI Work Orders</span>
+            {woSummary && woSummary.pending > 0 && (
+              <span className="tab-badge tab-badge--warning">{woSummary.pending}</span>
+            )}
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${activeTab === 'valvesim' ? 'tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('valvesim')}
+          >
+            <Icon name="valve" size={15} />
+            <span>Valve Simulation</span>
+          </button>
+          <button
+            type="button"
             className={`tab-btn ${activeTab === 'diagnostics' ? 'tab-btn--active' : ''}`}
             onClick={() => setActiveTab('diagnostics')}
           >
@@ -700,7 +1264,7 @@ function App() {
             onClick={() => setActiveTab('whatif')}
           >
             <Icon name="zap" size={15} />
-            <span>What-If Simulations</span>
+            <span>What-If</span>
           </button>
           <button
             type="button"
@@ -708,7 +1272,7 @@ function App() {
             onClick={() => setActiveTab('agent')}
           >
             <Icon name="bot" size={15} />
-            <span>AI Operations Agent</span>
+            <span>AI Agent</span>
           </button>
         </nav>
 
@@ -1764,7 +2328,839 @@ function App() {
           </section>
         )}
 
-        {/* Footer */}
+        {/* TAB 5: REAL-TIME PRESSURE MONITORING */}
+        {activeTab === 'monitoring' && (
+          <section className="tab-section monitoring-section">
+            <div className="section-header-row">
+              <div>
+                <div className="eyebrow">IOT SENSOR TELEMETRY & DIGITAL TWIN OBSERVABILITY</div>
+                <h2>Real-Time Network Pressure Monitoring</h2>
+                <p className="section-sub">
+                  Live pressure-head tracking across all 12 EPANET Net3 sensor stations with threshold monitoring and historical trends.
+                </p>
+              </div>
+              <div className="section-actions">
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  onClick={() => {
+                    void loadMonitoringData()
+                    void loadSensorHistory(selectedMonSensor)
+                  }}
+                  disabled={monLoading}
+                >
+                  <Icon name="refresh" size={14} />
+                  <span>{monLoading ? 'Refreshing...' : 'Refresh Telemetry'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Monitoring KPI Cards */}
+            <div className="monitoring-kpi-grid">
+              <div className="mon-kpi-card">
+                <span className="mon-kpi-label">Average System Pressure</span>
+                <div className="mon-kpi-val">
+                  {monOverview ? formatNumber(monOverview.average_pressure_psi, 1) : '—'}
+                  <span className="unit">PSI</span>
+                </div>
+                <span className="mon-kpi-sub">
+                  {monOverview ? `${formatNumber(monOverview.average_pressure_m, 1)} m H₂O equivalent` : 'Connecting telemetry...'}
+                </span>
+              </div>
+
+              <div className="mon-kpi-card">
+                <span className="mon-kpi-label">Average Network Flow</span>
+                <div className="mon-kpi-val">
+                  {monOverview ? formatNumber(monOverview.average_flow_lmin, 0) : '—'}
+                  <span className="unit">L/min</span>
+                </div>
+                <span className="mon-kpi-sub">Aggregated nodal consumption estimate</span>
+              </div>
+
+              <div className="mon-kpi-card">
+                <span className="mon-kpi-label">Sensor Health Distribution</span>
+                <div className="mon-kpi-val mon-kpi-status-row">
+                  <span className="stat-pill stat-pill--normal">
+                    {monOverview?.normal_sensors ?? 0} Normal
+                  </span>
+                  <span className="stat-pill stat-pill--warning">
+                    {monOverview?.warning_sensors ?? 0} Warning
+                  </span>
+                  <span className="stat-pill stat-pill--critical">
+                    {monOverview?.critical_sensors ?? 0} Critical
+                  </span>
+                </div>
+                <span className="mon-kpi-sub">
+                  Total {monOverview?.total_sensors ?? 12} sensors actively streaming
+                </span>
+              </div>
+
+              <div className="mon-kpi-card">
+                <span className="mon-kpi-label">Active Pressure Alerts</span>
+                <div className="mon-kpi-val">
+                  <span className={monAlerts.length > 0 ? 'text-alert' : 'text-success'}>
+                    {monAlerts.length}
+                  </span>
+                  <span className="unit">Threshold Anomalies</span>
+                </div>
+                <span className="mon-kpi-sub">
+                  {monAlerts.length > 0 ? 'Exceeding safety boundary limits' : 'All sensors within normal limits'}
+                </span>
+              </div>
+            </div>
+
+            {/* Main Monitoring Body: Chart & Sensor Table */}
+            <div className="monitoring-main-grid">
+              {/* Left Column: Interactive Time Series Chart & Details */}
+              <div className="monitoring-left-col">
+                <article className="panel chart-panel">
+                  <PressureChart
+                    history={sensorHistory}
+                    sensorLabel={currentMonSensor?.label ?? `Sensor ${selectedMonSensor}`}
+                    baselinePsi={currentMonSensor?.baseline_pressure_psi ?? 65}
+                    warnThreshold={monOverview?.thresholds.pressure_warning_psi ?? 55}
+                    critThreshold={monOverview?.thresholds.pressure_critical_psi ?? 40}
+                  />
+
+                  {currentMonSensor && (
+                    <div className="sensor-detail-strip">
+                      <div className="detail-item">
+                        <span className="label">Current Pressure</span>
+                        <strong className={`val val--${currentMonSensor.status.toLowerCase()}`}>
+                          {formatNumber(currentMonSensor.current_pressure_psi, 1)} PSI
+                        </strong>
+                      </div>
+                      <div className="detail-item">
+                        <span className="label">Baseline Pressure</span>
+                        <strong className="val">{formatNumber(currentMonSensor.baseline_pressure_psi, 1)} PSI</strong>
+                      </div>
+                      <div className="detail-item">
+                        <span className="label">Pressure Drop</span>
+                        <strong className={`val ${currentMonSensor.pressure_drop_psi > 1.5 ? 'text-alert' : ''}`}>
+                          {formatNumber(currentMonSensor.pressure_drop_psi, 2)} PSI
+                        </strong>
+                      </div>
+                      <div className="detail-item">
+                        <span className="label">Estimated Flow</span>
+                        <strong className="val">{formatNumber(currentMonSensor.flow_lmin, 0)} L/min</strong>
+                      </div>
+                      <div className="detail-item">
+                        <span className="label">Zone / District</span>
+                        <strong className="val">{currentMonSensor.zone}</strong>
+                      </div>
+                      <div className="detail-action">
+                        <button
+                          type="button"
+                          className="btn btn--primary btn--sm"
+                          onClick={() => {
+                            setManualWOSensor(currentMonSensor.sensor_id)
+                            setManualWODesc(`Telemetry alert: Pressure deficit of ${formatNumber(currentMonSensor.pressure_drop_psi, 2)} PSI at ${currentMonSensor.label}`)
+                            setActiveTab('workorders')
+                            setShowManualWOModal(true)
+                          }}
+                        >
+                          <Icon name="wrench" size={13} />
+                          <span>Dispatch WO</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </article>
+
+                {/* Active Alerts List */}
+                <article className="panel alerts-panel">
+                  <div className="panel-heading">
+                    <div>
+                      <div className="eyebrow">TELEMETRY ANOMALY FEED</div>
+                      <h3>Live Threshold Alerts ({monAlerts.length})</h3>
+                    </div>
+                  </div>
+                  {monAlerts.length > 0 ? (
+                    <div className="alerts-list">
+                      {monAlerts.map((alert) => (
+                        <div key={alert.alert_id} className={`alert-item alert-item--${alert.severity.toLowerCase()}`}>
+                          <div className="alert-badge">
+                            <Icon name="alert" size={15} />
+                            <span>{alert.severity}</span>
+                          </div>
+                          <div className="alert-content">
+                            <div className="alert-title">
+                              <strong>{alert.label} (Sensor {alert.sensor_id})</strong>
+                              <span className="alert-time">{formatTime(alert.timestamp)}</span>
+                            </div>
+                            <p className="alert-msg">{alert.message}</p>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn--outline btn--xs"
+                            onClick={() => {
+                              setSelectedMonSensor(alert.sensor_id)
+                              void loadSensorHistory(alert.sensor_id)
+                            }}
+                          >
+                            Inspect
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="alerts-empty">
+                      <Icon name="check" size={24} />
+                      <p>No active pressure or flow threshold violations. System operating normally.</p>
+                    </div>
+                  )}
+                </article>
+              </div>
+
+              {/* Right Column: Sensor Roster Table */}
+              <div className="monitoring-right-col">
+                <article className="panel sensor-roster-panel">
+                  <div className="panel-heading">
+                    <div>
+                      <div className="eyebrow">EPANET NET3 STATIONS</div>
+                      <h3>Sensor Telemetry Grid ({monSensors.length})</h3>
+                    </div>
+                  </div>
+                  <div className="sensor-table-wrap">
+                    <table className="sensor-table">
+                      <thead>
+                        <tr>
+                          <th>Sensor / Zone</th>
+                          <th>Pressure</th>
+                          <th>Drop</th>
+                          <th>Flow</th>
+                          <th>Status</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {monSensors.map((s) => {
+                          const isSelected = s.sensor_id === selectedMonSensor
+                          return (
+                            <tr
+                              key={s.sensor_id}
+                              className={`sensor-row ${isSelected ? 'sensor-row--selected' : ''}`}
+                              onClick={() => {
+                                setSelectedMonSensor(s.sensor_id)
+                                void loadSensorHistory(s.sensor_id)
+                              }}
+                            >
+                              <td>
+                                <div className="sensor-name">
+                                  <strong>{s.label}</strong>
+                                  <small>ID: {s.sensor_id} · {s.zone}</small>
+                                </div>
+                              </td>
+                              <td>
+                                <span className="val-main">{formatNumber(s.current_pressure_psi, 1)} PSI</span>
+                                <small className="val-sub">Base: {formatNumber(s.baseline_pressure_psi, 1)}</small>
+                              </td>
+                              <td>
+                                <span className={s.pressure_drop_psi > 1.5 ? 'drop-alert' : 'drop-normal'}>
+                                  {s.pressure_drop_psi > 0 ? `-${formatNumber(s.pressure_drop_psi, 2)}` : '0.00'} PSI
+                                </span>
+                              </td>
+                              <td>
+                                <span>{formatNumber(s.flow_lmin, 0)} L/m</span>
+                              </td>
+                              <td>
+                                <span className={`status-pill status-pill--${s.status.toLowerCase()}`}>
+                                  {s.status}
+                                </span>
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn-link"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedMonSensor(s.sensor_id)
+                                    void loadSensorHistory(s.sensor_id)
+                                  }}
+                                >
+                                  Chart
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* TAB 6: AI-POWERED WORK ORDERS */}
+        {activeTab === 'workorders' && (
+          <section className="tab-section workorders-section">
+            <div className="section-header-row">
+              <div>
+                <div className="eyebrow">AUTONOMOUS INCIDENT DISPATCH & TICKETING</div>
+                <h2>AI-Powered Field Work Orders</h2>
+                <p className="section-sub">
+                  Self-generating maintenance tickets synthesized from hydraulic pressure anomalies, WNTR simulation models, and ML suspect localization.
+                </p>
+              </div>
+              <div className="section-actions">
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  onClick={() => void loadWorkOrders()}
+                  disabled={woLoading}
+                >
+                  <Icon name="refresh" size={14} />
+                  <span>{woLoading ? 'Refreshing...' : 'Refresh Orders'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={() => setShowManualWOModal(true)}
+                >
+                  <Icon name="clipboard" size={14} />
+                  <span>+ Dispatch Work Order</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Work Order KPI summary */}
+            <div className="wo-kpi-grid">
+              <div className="wo-kpi-card">
+                <span className="wo-kpi-label">Total Tickets</span>
+                <span className="wo-kpi-val">{woSummary?.total ?? workOrders.length}</span>
+                <span className="wo-kpi-sub">Recorded incidents</span>
+              </div>
+              <div className="wo-kpi-card">
+                <span className="wo-kpi-label">Critical Severity</span>
+                <span className="wo-kpi-val text-alert">{woSummary?.critical ?? 0}</span>
+                <span className="wo-kpi-sub">Immediate action required</span>
+              </div>
+              <div className="wo-kpi-card">
+                <span className="wo-kpi-label">Pending Dispatch</span>
+                <span className="wo-kpi-val text-warning">{woSummary?.pending ?? 0}</span>
+                <span className="wo-kpi-sub">Awaiting crew assignment</span>
+              </div>
+              <div className="wo-kpi-card">
+                <span className="wo-kpi-label">In Progress</span>
+                <span className="wo-kpi-val text-cyan">{woSummary?.in_progress ?? 0}</span>
+                <span className="wo-kpi-sub">Active field crews</span>
+              </div>
+              <div className="wo-kpi-card">
+                <span className="wo-kpi-label">Resolved</span>
+                <span className="wo-kpi-val text-success">{woSummary?.completed ?? 0}</span>
+                <span className="wo-kpi-sub">Remediated & closed</span>
+              </div>
+            </div>
+
+            {/* Modal for manual work order dispatch */}
+            {showManualWOModal && (
+              <div className="modal-backdrop" onClick={() => setShowManualWOModal(false)}>
+                <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <h3>Dispatch Manual Work Order</h3>
+                    <button
+                      type="button"
+                      className="modal-close"
+                      onClick={() => setShowManualWOModal(false)}
+                    >
+                      <Icon name="x" size={18} />
+                    </button>
+                  </div>
+                  <form onSubmit={handleCreateManualWO} className="modal-form">
+                    <div className="form-group">
+                      <label>Target Sensor / Junction Node</label>
+                      <select
+                        value={manualWOSensor}
+                        onChange={(e) => setManualWOSensor(e.target.value)}
+                        className="form-select"
+                      >
+                        {Object.entries(SENSOR_LABELS).map(([id, label]) => (
+                          <option key={id} value={id}>
+                            Junction {id} — {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Severity Level</label>
+                      <select
+                        value={manualWOSeverity}
+                        onChange={(e) => setManualWOSeverity(e.target.value as any)}
+                        className="form-select"
+                      >
+                        <option value="CRITICAL">CRITICAL (Emergency rupture)</option>
+                        <option value="HIGH">HIGH (Significant pressure deficit)</option>
+                        <option value="MEDIUM">MEDIUM (Minor leak/valve anomaly)</option>
+                        <option value="LOW">LOW (Scheduled inspection)</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Problem Description / Directive</label>
+                      <textarea
+                        value={manualWODesc}
+                        onChange={(e) => setManualWODesc(e.target.value)}
+                        rows={3}
+                        className="form-textarea"
+                        placeholder="Detail anomaly observations and dispatch directives..."
+                        required
+                      />
+                    </div>
+
+                    <div className="modal-actions">
+                      <button
+                        type="button"
+                        className="btn btn--outline"
+                        onClick={() => setShowManualWOModal(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn btn--primary">
+                        <Icon name="clipboard" size={14} />
+                        <span>Dispatch Ticket</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* Main Work Orders Grid */}
+            <div className="wo-main-grid">
+              {/* Left Column: Work Order List & Filter */}
+              <div className="wo-list-panel panel">
+                <div className="panel-heading">
+                  <div>
+                    <div className="eyebrow">DISPATCH QUEUE</div>
+                    <h3>Work Orders</h3>
+                  </div>
+                  <div className="wo-filters">
+                    {['ALL', 'PENDING', 'IN_PROGRESS', 'COMPLETED'].map((st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        className={`filter-btn ${woFilterStatus === st ? 'filter-btn--active' : ''}`}
+                        onClick={() => setWoFilterStatus(st)}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="wo-feed">
+                  {workOrders
+                    .filter((wo) => woFilterStatus === 'ALL' || wo.status === woFilterStatus)
+                    .map((wo) => {
+                      const isSelected = selectedWO?.work_order_id === wo.work_order_id
+                      return (
+                        <div
+                          key={wo.work_order_id}
+                          className={`wo-item ${isSelected ? 'wo-item--selected' : ''}`}
+                          onClick={() => setSelectedWO(wo)}
+                        >
+                          <div className="wo-item-top">
+                            <span className="wo-id">{wo.work_order_id}</span>
+                            <div className="wo-badges">
+                              <span className={`severity-tag severity-tag--${wo.severity.toLowerCase()}`}>
+                                {wo.severity}
+                              </span>
+                              <span className={`status-pill status-pill--${wo.status.toLowerCase().replace('_', '-')}`}>
+                                {wo.status.replace('_', ' ')}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="wo-loc">
+                            <strong>{wo.location}</strong>
+                            {wo.zone && <span> · {wo.zone}</span>}
+                          </div>
+                          <p className="wo-desc">{wo.problem_description}</p>
+                          <div className="wo-item-foot">
+                            <span className="wo-time">{formatTime(wo.created_at)}</span>
+                            {wo.auto_generated && <span className="ai-badge">AI AUTO-DISPATCH</span>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  {workOrders.length === 0 && (
+                    <div className="wo-empty">
+                      <Icon name="check" size={28} />
+                      <p>No work orders generated yet. All network junctions operating within normal baseline tolerances.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: Work Order Detailed Dossier */}
+              <div className="wo-detail-panel panel">
+                {selectedWO ? (
+                  <div className="wo-dossier">
+                    <div className="panel-heading">
+                      <div>
+                        <div className="eyebrow">INCIDENT DOSSIER</div>
+                        <h2>{selectedWO.work_order_id} — {selectedWO.location}</h2>
+                      </div>
+                      <div className="dossier-actions">
+                        {selectedWO.status === 'PENDING' && (
+                          <button
+                            type="button"
+                            className="btn btn--secondary btn--sm"
+                            onClick={() => handleUpdateWOStatus(selectedWO.work_order_id, 'IN_PROGRESS')}
+                            disabled={operation === 'wo_update'}
+                          >
+                            Assign Crew (In Progress)
+                          </button>
+                        )}
+                        {selectedWO.status !== 'COMPLETED' && (
+                          <button
+                            type="button"
+                            className="btn btn--primary btn--sm"
+                            onClick={() => handleUpdateWOStatus(selectedWO.work_order_id, 'COMPLETED')}
+                            disabled={operation === 'wo_update'}
+                          >
+                            <Icon name="check" size={14} />
+                            <span>Mark Completed</span>
+                          </button>
+                        )}
+                        {selectedWO.status === 'COMPLETED' && (
+                          <button
+                            type="button"
+                            className="btn btn--outline btn--sm"
+                            onClick={() => handleUpdateWOStatus(selectedWO.work_order_id, 'IN_PROGRESS')}
+                            disabled={operation === 'wo_update'}
+                          >
+                            Reopen Incident
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="dossier-body">
+                      {/* Telemetry Snapshot */}
+                      <div className="dossier-box telemetry-box">
+                        <h4>Telemetry at Incident Detection</h4>
+                        <div className="dossier-stats-grid">
+                          <div>
+                            <span className="sub">Current Pressure</span>
+                            <strong>{formatNumber(selectedWO.current_pressure_psi, 1)} PSI</strong>
+                            <small>({formatNumber(selectedWO.current_pressure_m, 1)} m H₂O)</small>
+                          </div>
+                          <div>
+                            <span className="sub">Pressure Deficit</span>
+                            <strong className="text-alert">{formatNumber(selectedWO.pressure_drop_m, 2)} m</strong>
+                          </div>
+                          <div>
+                            <span className="sub">Estimated Flow Loss</span>
+                            <strong>{formatNumber(selectedWO.flow_lmin, 0)} L/min</strong>
+                          </div>
+                          <div>
+                            <span className="sub">Severity Class</span>
+                            <span className={`severity-tag severity-tag--${selectedWO.severity.toLowerCase()}`}>
+                              {selectedWO.severity}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* AI Root Cause & Diagnostics */}
+                      <div className="dossier-box ai-diagnostics-box">
+                        <h4>
+                          <Icon name="bot" size={16} /> AI Diagnostic Analysis
+                        </h4>
+                        <div className="ai-field">
+                          <span className="ai-label">PROBLEM STATEMENT</span>
+                          <p>{selectedWO.problem_description}</p>
+                        </div>
+                        <div className="ai-field">
+                          <span className="ai-label">SUSPECTED ROOT CAUSE</span>
+                          <p>{selectedWO.suspected_cause}</p>
+                        </div>
+                        <div className="ai-field">
+                          <span className="ai-label">RECOMMENDED CREW PROCEDURE</span>
+                          <p className="ai-action-text">{selectedWO.recommended_action}</p>
+                        </div>
+                      </div>
+
+                      {/* Isolation Valve Advice */}
+                      <div className="dossier-box valve-advise-box">
+                        <h4>
+                          <Icon name="valve" size={16} /> Isolation Valve Protocol
+                        </h4>
+                        <p>
+                          To isolate the affected junction without widespread service cutoff, refer to the Digital Twin Valve Simulation tool:
+                        </p>
+                        <div className="valve-rec-pill">
+                          <strong>Recommended Isolation:</strong> Valve on Link {selectedWO.sensor_id}
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn--outline btn--sm mt-2"
+                          onClick={() => {
+                            setActiveTab('valvesim')
+                          }}
+                        >
+                          <Icon name="valve" size={14} />
+                          <span>Test Isolation in Valve Simulation</span>
+                        </button>
+                      </div>
+
+                      {/* Audit History Timeline */}
+                      {selectedWO.history && selectedWO.history.length > 0 && (
+                        <div className="dossier-box history-box">
+                          <h4>Incident Audit History</h4>
+                          <div className="wo-history-timeline">
+                            {selectedWO.history.map((h, i) => (
+                              <div key={i} className="history-step">
+                                <span className="history-dot" />
+                                <div className="history-info">
+                                  <span>Status transitioned from <strong>{h.from_status}</strong> to <strong>{h.to_status}</strong></span>
+                                  <small>{formatTime(h.timestamp)}</small>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="wo-detail-empty">
+                    <Icon name="clipboard" size={32} />
+                    <p>Select a work order from the queue to view AI diagnosis, telemetry telemetry, and crew directives.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* TAB 7: WHAT-IF VALVE SIMULATION */}
+        {activeTab === 'valvesim' && (
+          <section className="tab-section valvesim-section">
+            <div className="section-header-row">
+              <div>
+                <div className="eyebrow">HYDRAULIC GRAPH PROPAGATION & ISOLATION TWIN</div>
+                <h2>What-If Valve Simulation</h2>
+                <p className="section-sub">
+                  Test valve closure scenarios, evaluate pressure drops across downstream zones, and verify isolated pipeline sections before executing physical field maneuvers.
+                </p>
+              </div>
+              <div className="section-actions">
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  onClick={handleResetSim}
+                  disabled={simLoading || operation === 'sim_reset'}
+                >
+                  <Icon name="refresh" size={14} />
+                  <span>Reset All Valves to Open</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={handleRunSim}
+                  disabled={simLoading || operation === 'sim_run'}
+                >
+                  <Icon name="play" size={14} />
+                  <span>{operation === 'sim_run' ? 'Running Simulation...' : 'Run Simulation'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Simulation Disclaimer Banner */}
+            <div className="sim-disclaimer-banner">
+              <span className="banner-icon">
+                <Icon name="alert" size={18} />
+              </span>
+              <div>
+                <strong>[DIGITAL TWIN SIMULATION ONLY]</strong>
+                <p>
+                  All valve closures and pressure impacts calculated here are computed in a sandbox WNTR EPANET hydraulic graph. No physical SCADA or telemetry commands are transmitted to network equipment.
+                </p>
+              </div>
+            </div>
+
+            {/* Valve Simulation Main Grid */}
+            <div className="valvesim-main-grid">
+              {/* Left Column: Valve Roster & Controls */}
+              <div className="valves-panel panel">
+                <div className="panel-heading">
+                  <div>
+                    <div className="eyebrow">ACTUATION MATRIX</div>
+                    <h3>Simulation Valves ({simNetwork?.valves.length ?? 0})</h3>
+                  </div>
+                  <span className="valves-status-hint">
+                    {simNetwork?.valves.filter((v) => v.status === 'CLOSED').length ?? 0} Closed / {simNetwork?.valves.length ?? 10} Total
+                  </span>
+                </div>
+
+                <div className="valves-list">
+                  {simNetwork?.valves.map((valve) => {
+                    const isClosed = valve.status === 'CLOSED'
+                    const isSelected = selectedValve === valve.valve_id
+                    return (
+                      <div
+                        key={valve.valve_id}
+                        className={`valve-card ${isClosed ? 'valve-card--closed' : 'valve-card--open'} ${isSelected ? 'valve-card--selected' : ''}`}
+                        onClick={() => setSelectedValve(valve.valve_id)}
+                      >
+                        <div className="valve-info">
+                          <div className="valve-id-row">
+                            <span className="valve-id">{valve.valve_id}</span>
+                            <span className={`valve-badge ${isClosed ? 'valve-badge--closed' : 'valve-badge--open'}`}>
+                              {valve.status}
+                            </span>
+                          </div>
+                          <div className="valve-pipe">
+                            <span>Pipe: {valve.pipe_id}</span>
+                            <span className="pipe-nodes">({valve.start_node} ↔ {valve.end_node})</span>
+                          </div>
+                        </div>
+
+                        <div className="valve-ctrl">
+                          <button
+                            type="button"
+                            className={`btn btn--sm ${isClosed ? 'btn--success' : 'btn--warning'}`}
+                            onClick={() => handleToggleValve(valve.valve_id, valve.status)}
+                            disabled={operation === 'valve'}
+                          >
+                            {isClosed ? 'Simulate Open' : 'Simulate Close'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Right Column: Simulation Results & Impact Analysis */}
+              <div className="sim-results-panel panel">
+                <div className="panel-heading">
+                  <div>
+                    <div className="eyebrow">HYDRAULIC PROPAGATION ANALYSIS</div>
+                    <h3>Simulation Impact Results</h3>
+                  </div>
+                  {simResult && (
+                    <span className="status-pill status-pill--normal">
+                      Simulation Evaluated
+                    </span>
+                  )}
+                </div>
+
+                {simResult ? (
+                  <div className="sim-results-body">
+                    {/* Disconnected Zones Warning */}
+                    {simResult.disconnected_junctions.length > 0 && (
+                      <div className="disconnected-alert">
+                        <Icon name="alert" size={20} />
+                        <div>
+                          <strong>Service Disruption Warning: {simResult.disconnected_junctions.length} Junctions Isolated</strong>
+                          <p>
+                            Closure of valve(s) {simResult.closed_valves.join(', ')} has completely disconnected Junction(s):{' '}
+                            <strong>{simResult.disconnected_junctions.join(', ')}</strong> from reservoir supply.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Comparison KPI Cards */}
+                    <div className="sim-kpi-grid">
+                      <div className="sim-kpi-card">
+                        <span className="label">Average Pressure</span>
+                        <div className="vals">
+                          <span className="before">{formatNumber(simResult.network_summary.avg_pressure_before_psi, 1)} PSI</span>
+                          <span className="arrow">→</span>
+                          <strong className="after">{formatNumber(simResult.network_summary.avg_pressure_after_psi, 1)} PSI</strong>
+                        </div>
+                        <small className="delta">
+                          Δ {formatNumber(simResult.network_summary.avg_pressure_after_psi - simResult.network_summary.avg_pressure_before_psi, 1)} PSI
+                        </small>
+                      </div>
+
+                      <div className="sim-kpi-card">
+                        <span className="label">Average Flow Rate</span>
+                        <div className="vals">
+                          <span className="before">{formatNumber(simResult.network_summary.avg_flow_before_lmin, 0)} L/m</span>
+                          <span className="arrow">→</span>
+                          <strong className="after">{formatNumber(simResult.network_summary.avg_flow_after_lmin, 0)} L/m</strong>
+                        </div>
+                        <small className="delta text-alert">
+                          -{formatNumber(simResult.network_summary.flow_reduction_pct, 1)}% Reduction
+                        </small>
+                      </div>
+
+                      <div className="sim-kpi-card">
+                        <span className="label">Junctions Affected</span>
+                        <div className="val-single">
+                          <strong>{simResult.affected_junction_count}</strong>
+                        </div>
+                        <small className="sub">Hydraulic gradient modified</small>
+                      </div>
+
+                      <div className="sim-kpi-card">
+                        <span className="label">Isolated Nodes</span>
+                        <div className="val-single">
+                          <strong className={simResult.network_summary.disconnected_zone_count > 0 ? 'text-alert' : 'text-success'}>
+                            {simResult.network_summary.disconnected_zone_count}
+                          </strong>
+                        </div>
+                        <small className="sub">Zero water pressure</small>
+                      </div>
+                    </div>
+
+                    {/* Sensor Impacts Table */}
+                    <div className="impacts-table-container">
+                      <h4>Monitoring Stations Impact Breakdown</h4>
+                      <table className="impact-table">
+                        <thead>
+                          <tr>
+                            <th>Sensor ID</th>
+                            <th>Station Name</th>
+                            <th>Pre-Sim PSI</th>
+                            <th>Post-Sim PSI</th>
+                            <th>Delta PSI</th>
+                            <th>Sim Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {simResult.sensor_impacts.map((si) => (
+                            <tr key={si.sensor_id} className={si.disconnected ? 'row--disconnected' : ''}>
+                              <td><strong>{si.sensor_id}</strong></td>
+                              <td>{si.label}</td>
+                              <td>{formatNumber(si.old_pressure_psi, 1)}</td>
+                              <td><strong>{formatNumber(si.new_pressure_psi, 1)}</strong></td>
+                              <td>
+                                <span className={si.pressure_change_psi < 0 ? 'text-alert' : 'text-success'}>
+                                  {si.pressure_change_psi > 0 ? `+${formatNumber(si.pressure_change_psi, 1)}` : `${formatNumber(si.pressure_change_psi, 1)}`}
+                                </span>
+                              </td>
+                              <td>
+                                <span className={`status-pill status-pill--${si.post_sim_status.toLowerCase()}`}>
+                                  {si.post_sim_status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="sim-empty-state">
+                    <Icon name="valve" size={32} />
+                    <h4>No Simulation Executed Yet</h4>
+                    <p>
+                      Toggle one or more valves in the Actuation Matrix on the left, then click <strong>"Run Simulation"</strong> to evaluate the hydraulic pressure propagation and check for disconnected zones.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
         <footer className="footer">
           <span>© NIRX WATER INTELLIGENCE</span>
           <span>

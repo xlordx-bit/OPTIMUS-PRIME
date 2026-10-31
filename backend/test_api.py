@@ -142,7 +142,7 @@ def test_end_to_end_demo():
     # -----------------------------------------------------------------------
     # Step 7: Round 1 Canned Endpoints (/what-if and /agent)
     # -----------------------------------------------------------------------
-    print(f"\n[{BOLD}7/7{RESET}] Testing Mocked Scenario Endpoints (POST /what-if & POST /agent)...")
+    print(f"\n[{BOLD}7/10{RESET}] Testing Mocked Scenario Endpoints (POST /what-if & POST /agent)...")
     res = client.post("/what-if", json={"action_type": "valve_closure", "target_link_id": "111"})
     assert res.status_code == 200
     whatif = res.json()
@@ -153,7 +153,99 @@ def test_end_to_end_demo():
     ag = res.json()
     print(f"    {GREEN}[OK] /agent reasoning trace steps: {len(ag['reasoning_trace'])} | Status: {ag['status']}{RESET}")
 
-    header("ALL 7 DEMO SEQUENCE CHECKS PASSED (100% SUCCESS)")
+    # -----------------------------------------------------------------------
+    # Step 8: Real-Time Pressure Monitoring Endpoints
+    # -----------------------------------------------------------------------
+    print(f"\n[{BOLD}8/10{RESET}] Testing Pressure Monitoring Endpoints (/monitoring/*)...")
+    res = client.get("/monitoring/overview")
+    assert res.status_code == 200
+    m_ov = res.json()
+    assert "average_pressure_psi" in m_ov
+    assert "total_sensors" in m_ov
+    print(f"    {GREEN}[OK] /monitoring/overview: Avg {m_ov['average_pressure_psi']:.1f} PSI | Total Sensors: {m_ov['total_sensors']}{RESET}")
+
+    res = client.get("/monitoring/sensors")
+    assert res.status_code == 200
+    m_sensors = res.json()
+    assert m_sensors["count"] == 12
+    print(f"    {GREEN}[OK] /monitoring/sensors: {m_sensors['count']} stations verified with PSI and flow estimates{RESET}")
+
+    res = client.get("/monitoring/sensors/117?points=10")
+    assert res.status_code == 200
+    m_detail = res.json()
+    assert m_detail["points"] == 10
+    print(f"    {GREEN}[OK] /monitoring/sensors/117: {len(m_detail['history'])} time-series telemetry points generated{RESET}")
+
+    res = client.get("/monitoring/alerts")
+    assert res.status_code == 200
+    print(f"    {GREEN}[OK] /monitoring/alerts: threshold evaluation active{RESET}")
+
+    # -----------------------------------------------------------------------
+    # Step 9: AI Work Orders Endpoints
+    # -----------------------------------------------------------------------
+    print(f"\n[{BOLD}9/10{RESET}] Testing AI Work Orders Endpoints (/work-orders*)...")
+    res = client.get("/work-orders")
+    assert res.status_code == 200
+    wo_list = res.json()
+    assert "work_orders" in wo_list
+    assert "summary" in wo_list
+    print(f"    {GREEN}[OK] /work-orders: Found {len(wo_list['work_orders'])} tickets | Summary: {wo_list['summary']}{RESET}")
+
+    # Create a manual work order
+    res = client.post("/work-orders", json={
+        "sensor_id": "117",
+        "severity": "CRITICAL",
+        "problem_description": "Automated test fissure dispatch",
+        "incident_type": "TEST_INCIDENT",
+        "suspected_cause": "Pipe shear stress",
+        "recommended_action": "Isolate pipe link 111"
+    })
+    assert res.status_code == 200
+    new_wo = res.json()
+    wo_id = new_wo["work_order_id"]
+    print(f"    {GREEN}[OK] POST /work-orders: Created ticket '{wo_id}' (Severity: {new_wo['severity']}){RESET}")
+
+    # Update work order status
+    res = client.patch(f"/work-orders/{wo_id}", json={"status": "IN_PROGRESS"})
+    assert res.status_code == 200
+    assert res.json()["status"] == "IN_PROGRESS"
+    print(f"    {GREEN}[OK] PATCH /work-orders/{wo_id}: Status transitioned to IN_PROGRESS{RESET}")
+
+    # -----------------------------------------------------------------------
+    # Step 10: Valve Simulation Endpoints
+    # -----------------------------------------------------------------------
+    print(f"\n[{BOLD}10/10{RESET}] Testing What-If Valve Simulation Endpoints (/simulation/*)...")
+    res = client.get("/simulation/network")
+    assert res.status_code == 200
+    sim_net = res.json()
+    assert len(sim_net["valves"]) > 0
+    print(f"    {GREEN}[OK] /simulation/network: {len(sim_net['valves'])} valves available for digital twin isolation{RESET}")
+
+    # Simulate closing a valve
+    res = client.post("/simulation/valve", json={"valve_id": "V-111", "action": "CLOSE"})
+    assert res.status_code == 200
+    v_res = res.json()
+    assert v_res["new_status"] == "CLOSED"
+    print(f"    {GREEN}[OK] POST /simulation/valve: Valve V-111 closed in simulation{RESET}")
+
+    # Run hydraulic simulation
+    res = client.post("/simulation/run")
+    assert res.status_code == 200
+    sim_run = res.json()
+    assert "affected_junction_count" in sim_run
+    assert "sensor_impacts" in sim_run
+    print(f"    {GREEN}[OK] POST /simulation/run: Propagation evaluated {sim_run['affected_junction_count']} affected junctions | Flow reduction: {sim_run['network_summary']['flow_reduction_pct']:.1f}%{RESET}")
+
+    # Reset valves to open
+    res = client.post("/simulation/reset")
+    assert res.status_code == 200
+    rst_valves = res.json()
+    assert rst_valves["success"] is True
+    assert len(rst_valves["valve_states"]) == 10
+    assert all(v["status"] == "OPEN" for v in rst_valves["valve_states"])
+    print(f"    {GREEN}[OK] POST /simulation/reset: All {len(rst_valves['valve_states'])} valves restored to OPEN{RESET}")
+
+    header("ALL 10 DEMO SEQUENCE CHECKS PASSED (100% SUCCESS)")
 
 
 if __name__ == "__main__":
