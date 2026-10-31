@@ -2441,3 +2441,61 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   Topbar Fullscreen 3D Map Trigger & View Toggles
+   ========================================================================== */
+.fullscreen-topbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: rgba(86, 220, 203, 0.12);
+  border: 1px solid rgba(86, 220, 203, 0.35);
+  border-radius: 8px;
+  color: var(--aqua);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 0 12px rgba(86, 220, 203, 0.2);
+}
+
+.fullscreen-topbar-btn:hover {
+  background: var(--aqua);
+  color: #071116;
+  box-shadow: 0 0 18px rgba(86, 220, 203, 0.45);
+}
+
+.map-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(7, 17, 22, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.view-toggle-btn {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #8da4ac;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.view-toggle-btn:hover {
+  color: #eff8f6;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.view-toggle-btn.is-active {
+  background: var(--aqua);
+  color: #071116;
+  box-shadow: 0 0 10px rgba(86, 220, 203, 0.35);
+}

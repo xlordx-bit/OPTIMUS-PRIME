@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import './App.css'
+import Network3DMap from './components/Network3DMap'
 
 type NetworkNode = {
   id: string
@@ -121,6 +122,7 @@ type AgentResponse = {
 
 type Operation = 'inject' | 'reset' | 'detect' | 'whatif' | 'agent' | null
 type ActiveTab = 'overview' | 'diagnostics' | 'whatif' | 'agent'
+type MapViewMode = '3d' | '2d'
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const endpoints = [
@@ -157,7 +159,6 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
       return (await response.json()) as T
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
-      // Continue to fallback endpoints only if network error
       const isNetworkErr =
         lastError.message.includes('Failed to fetch') ||
         lastError.message.includes('NetworkError') ||
@@ -200,6 +201,7 @@ function Icon({
     | 'bot'
     | 'zap'
     | 'clipboard'
+    | 'cube'
   size?: number
 }) {
   const paths: Record<string, React.ReactNode> = {
@@ -266,6 +268,13 @@ function Icon({
         <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
       </>
     ),
+    cube: (
+      <>
+        <path d="m21 16-9 5-9-5V8l9-5 9 5v8Z" />
+        <path d="m3.3 7 8.7 5 8.7-5" />
+        <path d="M12 12v9" />
+      </>
+    ),
   }
 
   return (
@@ -285,7 +294,7 @@ function Icon({
   )
 }
 
-function NetworkMap({
+function NetworkMap2D({
   network,
   state,
   detection,
@@ -335,7 +344,7 @@ function NetworkMap({
       className="network-map"
       viewBox="0 0 760 510"
       role="img"
-      aria-label="EPANET Net3 water distribution network topology with live telemetry"
+      aria-label="EPANET Net3 2D schematic"
     >
       <defs>
         <pattern id="map-grid" width="32" height="32" patternUnits="userSpaceOnUse">
@@ -359,7 +368,6 @@ function NetworkMap({
 
       <rect width="760" height="510" fill="url(#map-grid)" />
 
-      {/* Pipes */}
       {network.pipes.map((pipe) => {
         const [start, end] = pipe.coordinates
         if (!start || !end) return null
@@ -380,7 +388,6 @@ function NetworkMap({
         )
       })}
 
-      {/* Nodes */}
       {network.nodes.map((node) => {
         const point = position(node.coordinates.x, node.coordinates.y)
         const sensor = sensorById.get(node.id)
@@ -398,7 +405,6 @@ function NetworkMap({
             onClick={() => onSelectNode(node.id)}
             style={{ cursor: 'pointer' }}
           >
-            {/* Active leak animated waves */}
             {isActiveLeak && (
               <>
                 <circle cx={point.x} cy={point.y} r="22" className="leak-ring leak-ring--outer" />
@@ -406,7 +412,6 @@ function NetworkMap({
               </>
             )}
 
-            {/* Suspect halo from ML model */}
             {suspect && !isActiveLeak && (
               <circle
                 cx={point.x}
@@ -417,12 +422,10 @@ function NetworkMap({
               />
             )}
 
-            {/* Selection ring */}
             {isSelected && !isActiveLeak && (
               <circle cx={point.x} cy={point.y} r="10" className="selection-ring" />
             )}
 
-            {/* Main node dot */}
             <circle
               cx={point.x}
               cy={point.y}
@@ -437,7 +440,6 @@ function NetworkMap({
               }${suspect ? ` · Suspect #${suspect.rank} (${formatNumber(suspect.probability * 100, 1)}%)` : ''}`}</title>
             </circle>
 
-            {/* Label for sensors or suspects */}
             {(sensor || suspect || isSelected) && (
               <text
                 x={point.x + 8}
@@ -466,6 +468,9 @@ function NetworkMap({
 
 function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview')
+  const [mapMode, setMapMode] = useState<MapViewMode>('3d')
+  const [isFullScreen3D, setIsFullScreen3D] = useState(false)
+
   const [network, setNetwork] = useState<NetworkResponse | null>(null)
   const [state, setState] = useState<NetworkState | null>(null)
   const [detection, setDetection] = useState<Detection | null>(null)
@@ -663,15 +668,37 @@ function App() {
 
   return (
     <main className="app-shell">
+      {/* Full-Screen 3D Map Modal when toggled */}
+      {isFullScreen3D && (
+        <Network3DMap
+          network={network}
+          state={state}
+          detection={detection}
+          selectedNode={selectedNode}
+          onSelectNode={(id) => setSelectedNode(id)}
+          onInjectAtNode={(id) => {
+            setSelectedNode(id)
+            void handleInject()
+          }}
+          onSwitchToWhatIf={(link) => {
+            setWhatIfLink(link)
+            setActiveTab('whatif')
+            setIsFullScreen3D(false)
+          }}
+          isFullScreen={true}
+          onToggleFullScreen={() => setIsFullScreen3D(false)}
+        />
+      )}
+
       {/* Top Header */}
       <header className="topbar">
-        <a className="brand" href="#overview" aria-label="NirX Operations Center">
+        <a className="brand" href="#overview" aria-label="JalNetra 3D Water Intelligence">
           <span className="brand-mark">
             <Icon name="drop" size={22} />
           </span>
           <span className="brand-copy">
-            <strong>NIRX</strong>
-            <small>WATER INTELLIGENCE</small>
+            <strong>JALNETRA</strong>
+            <small>3D WATER DIGITAL TWIN</small>
           </span>
         </a>
 
@@ -682,8 +709,8 @@ function App() {
             className={`tab-btn ${activeTab === 'overview' ? 'tab-btn--active' : ''}`}
             onClick={() => setActiveTab('overview')}
           >
-            <Icon name="layers" size={15} />
-            <span>Live Operations</span>
+            <Icon name="cube" size={15} />
+            <span>3D Operations</span>
           </button>
           <button
             type="button"
@@ -714,6 +741,14 @@ function App() {
 
         {/* Topbar Right */}
         <div className="topbar-right">
+          <button
+            type="button"
+            className="fullscreen-topbar-btn"
+            onClick={() => setIsFullScreen3D(true)}
+            title="Launch Fullscreen 3D Map View"
+          >
+            <Icon name="cube" size={14} /> 3D Map ↗
+          </button>
           <a
             className="docs-link"
             href="http://127.0.0.1:8000/docs"
@@ -734,14 +769,14 @@ function App() {
         <section className="page-heading" id="overview">
           <div>
             <div className="eyebrow">
-              <span className="eyebrow-line" /> EPANET NET3 DIGITAL TWIN ENGINE & ML TELEMETRY
+              <span className="eyebrow-line" /> MAPLIBRE GL JS 3D CITY TERRAIN · EPANET NET3 & ML TELEMETRY
             </div>
             <h1>
-              Water Distribution <span>Digital Twin.</span>
+              3D Water Distribution <span>Digital Twin.</span>
             </h1>
             <p className="page-description">
-              Real-time hydraulic simulation with Pressure-Driven Demand (WNTR), automated Scikit-Learn leak
-              localization, scenario containment, and intelligent crew dispatch.
+              Real-time 3D hydraulic city model with Pressure-Driven Demand (WNTR), glowing pipeline status,
+              automated ML leak localization, what-if containment, and intelligent crew dispatch.
             </p>
           </div>
           <div className={`system-state ${!isHealthy ? 'system-state--alert' : ''}`}>
@@ -863,7 +898,7 @@ function App() {
           </article>
         </section>
 
-        {/* TAB 1: OVERVIEW & MAP */}
+        {/* TAB 1: OVERVIEW & 3D MAP */}
         {activeTab === 'overview' && (
           <>
             <section className="main-grid">
@@ -871,15 +906,42 @@ function App() {
               <article className="panel map-panel">
                 <div className="panel-heading">
                   <div>
-                    <div className="eyebrow">HYDRAULIC NETWORK TOPOLOGY</div>
-                    <h2>{network?.network_name ?? 'EPANET Net3 Topology'}</h2>
+                    <div className="eyebrow">
+                      {mapMode === '3d' ? 'MAPLIBRE GL JS 3D NETWORK' : '2D HYDRAULIC SCHEMATIC'}
+                    </div>
+                    <h2>{network?.network_name ?? 'EPANET Net3 3D Twin'}</h2>
                   </div>
+
                   <div className="panel-actions">
-                    {selectedNodeDetails?.node && (
-                      <span className="node-pill">
-                        Selected: <strong>Junction {selectedNode}</strong>
-                      </span>
-                    )}
+                    {/* View Switcher: 3D vs 2D */}
+                    <div className="map-view-toggle">
+                      <button
+                        type="button"
+                        className={`view-toggle-btn ${mapMode === '3d' ? 'is-active' : ''}`}
+                        onClick={() => setMapMode('3d')}
+                        title="Switch to 3D MapLibre City View"
+                      >
+                        🌐 3D City
+                      </button>
+                      <button
+                        type="button"
+                        className={`view-toggle-btn ${mapMode === '2d' ? 'is-active' : ''}`}
+                        onClick={() => setMapMode('2d')}
+                        title="Switch to 2D Hydraulic Schematic"
+                      >
+                        📐 2D Schema
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => setIsFullScreen3D(true)}
+                      title="Expand to Fullscreen 3D View"
+                    >
+                      ↗
+                    </button>
+
                     <button
                       type="button"
                       className="icon-button"
@@ -893,44 +955,63 @@ function App() {
                   </div>
                 </div>
 
-                <div className="map-wrap">
-                  {network ? (
-                    <NetworkMap
-                      network={network}
-                      state={state}
-                      detection={detection}
-                      selectedNode={selectedNode}
-                      onSelectNode={(id) => setSelectedNode(id)}
-                    />
-                  ) : (
-                    <div className="map-placeholder">
-                      {initialLoading ? 'Initializing hydraulic model & topology…' : 'Topology unavailable.'}
+                {mapMode === '3d' ? (
+                  <Network3DMap
+                    network={network}
+                    state={state}
+                    detection={detection}
+                    selectedNode={selectedNode}
+                    onSelectNode={(id) => setSelectedNode(id)}
+                    onInjectAtNode={(id) => {
+                      setSelectedNode(id)
+                      void handleInject()
+                    }}
+                    onSwitchToWhatIf={(link) => {
+                      setWhatIfLink(link)
+                      setActiveTab('whatif')
+                    }}
+                    onToggleFullScreen={() => setIsFullScreen3D(true)}
+                  />
+                ) : (
+                  <div className="map-wrap">
+                    {network ? (
+                      <NetworkMap2D
+                        network={network}
+                        state={state}
+                        detection={detection}
+                        selectedNode={selectedNode}
+                        onSelectNode={(id) => setSelectedNode(id)}
+                      />
+                    ) : (
+                      <div className="map-placeholder">
+                        {initialLoading ? 'Initializing hydraulic model & topology…' : 'Topology unavailable.'}
+                      </div>
+                    )}
+
+                    <div className="map-overlay map-overlay--top">
+                      <span className="map-live-dot" /> 2D WNTR SCHEMATIC <span className="overlay-divider" /> CLICK
+                      NODE TO TARGET
                     </div>
-                  )}
 
-                  <div className="map-overlay map-overlay--top">
-                    <span className="map-live-dot" /> LIVE WNTR TELEMETRY <span className="overlay-divider" />{' '}
-                    CLICK NODE TO TARGET
+                    <div className="map-overlay map-overlay--bottom">
+                      <span>
+                        <i className="legend-dot legend-dot--sensor" /> SENSOR
+                      </span>
+                      <span>
+                        <i className="legend-dot legend-dot--normal" /> NORMAL
+                      </span>
+                      <span>
+                        <i className="legend-dot legend-dot--warning" /> WARNING (&gt;0.8m)
+                      </span>
+                      <span>
+                        <i className="legend-dot legend-dot--critical" /> CRITICAL (&gt;2.0m)
+                      </span>
+                      <span>
+                        <i className="legend-dot legend-dot--suspect" /> ML SUSPECT
+                      </span>
+                    </div>
                   </div>
-
-                  <div className="map-overlay map-overlay--bottom">
-                    <span>
-                      <i className="legend-dot legend-dot--sensor" /> SENSOR
-                    </span>
-                    <span>
-                      <i className="legend-dot legend-dot--normal" /> NORMAL
-                    </span>
-                    <span>
-                      <i className="legend-dot legend-dot--warning" /> WARNING (&gt;0.8m)
-                    </span>
-                    <span>
-                      <i className="legend-dot legend-dot--critical" /> CRITICAL (&gt;2.0m)
-                    </span>
-                    <span>
-                      <i className="legend-dot legend-dot--suspect" /> ML SUSPECT
-                    </span>
-                  </div>
-                </div>
+                )}
 
                 <div className="map-footer">
                   <div>
@@ -946,7 +1027,8 @@ function App() {
                     <span>MONITORS</span>
                   </div>
                   <div className="map-footer-note">
-                    <Icon name="pulse" size={14} /> PDD WNTR Simulation · Click map nodes to inspect & inject
+                    <Icon name="cube" size={14} /> 3D City Terrain + Pipe Glow: Green = Healthy, Yellow = Warning,
+                    Red = Leak
                   </div>
                 </div>
               </article>
@@ -1211,7 +1293,6 @@ function App() {
         {activeTab === 'diagnostics' && (
           <section className="diagnostics-view">
             <div className="diagnostics-hero-grid">
-              {/* Trigger & Overview Card */}
               <article className="panel diagnostics-control-card">
                 <div className="panel-heading">
                   <div>
@@ -1264,7 +1345,6 @@ function App() {
                 )}
               </article>
 
-              {/* Status Verdict Card */}
               <article className="panel verdict-card">
                 <div className="panel-heading panel-heading--compact">
                   <div className="eyebrow">DETECTION VERDICT</div>
@@ -1299,10 +1379,8 @@ function App() {
               </article>
             </div>
 
-            {/* Suspects & Work Order Section */}
             {detection?.leak_detected && (
               <div className="suspects-and-workorder-grid">
-                {/* Top Suspects Localization */}
                 <article className="panel suspects-card">
                   <div className="panel-heading">
                     <div>
@@ -1338,16 +1416,16 @@ function App() {
                           onClick={() => {
                             setSelectedNode(suspect.node_id)
                             setActiveTab('overview')
+                            setMapMode('3d')
                           }}
                         >
-                          View Map
+                          View 3D
                         </button>
                       </div>
                     ))}
                   </div>
                 </article>
 
-                {/* Automated Dispatch Work Order */}
                 {detection.work_order_template && (
                   <article className="panel workorder-card">
                     <div className="panel-heading">
@@ -1431,7 +1509,6 @@ function App() {
         {activeTab === 'whatif' && (
           <section className="whatif-view">
             <div className="whatif-grid">
-              {/* Scenario Configuration Form */}
               <article className="panel whatif-config-card">
                 <div className="panel-heading">
                   <div>
@@ -1541,7 +1618,6 @@ function App() {
                 </form>
               </article>
 
-              {/* Simulation Result Presentation */}
               <article className="panel whatif-results-card">
                 <div className="panel-heading">
                   <div>
@@ -1621,7 +1697,6 @@ function App() {
         {activeTab === 'agent' && (
           <section className="agent-view">
             <div className="agent-grid">
-              {/* Query & Controls */}
               <article className="panel agent-prompt-card">
                 <div className="panel-heading">
                   <div>
@@ -1692,7 +1767,6 @@ function App() {
                 </form>
               </article>
 
-              {/* Reasoning Trace & Output */}
               <article className="panel agent-response-card">
                 <div className="panel-heading">
                   <div>
@@ -1708,7 +1782,6 @@ function App() {
 
                 {agentResult ? (
                   <div className="agent-body">
-                    {/* Executive Summary */}
                     <div className="verdict-banner">
                       <div className="verdict-banner-icon">
                         <Icon name="check" size={20} />
@@ -1719,7 +1792,6 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Step-by-Step Reasoning Trace */}
                     <div className="trace-timeline">
                       <h4>Multi-Step Reasoning Trace</h4>
                       {agentResult.reasoning_trace.map((step) => (
@@ -1740,7 +1812,6 @@ function App() {
                       ))}
                     </div>
 
-                    {/* Suggested Actions Checklist */}
                     <div className="suggested-actions-box">
                       <h4>Prioritized Immediate Action Plan</h4>
                       <ul className="action-checklist">
@@ -1766,13 +1837,13 @@ function App() {
 
         {/* Footer */}
         <footer className="footer">
-          <span>© NIRX WATER INTELLIGENCE</span>
+          <span>© JALNETRA · 3D WATER INTELLIGENCE DIGITAL TWIN</span>
           <span>
             NET3 DIGITAL TWIN <i /> {network?.summary.total_nodes ?? '—'} NODES <i />{' '}
             {network?.summary.total_sensors ?? '—'} SENSORS <i />{' '}
             {network?.summary.total_pipes ?? '—'} PIPES
           </span>
-          <span>POWERED BY WNTR + EPANET + SCIKIT-LEARN</span>
+          <span>POWERED BY MAPLIBRE GL JS + WNTR + EPANET + SCIKIT-LEARN</span>
         </footer>
       </div>
     </main>

@@ -243,8 +243,8 @@ def train_models(df: pd.DataFrame, sensor_list: List[str], baseline_pressures: D
 
     # 1. Detector Model (Isolation Forest + Calibrated Binary Classifier)
     print("\n[1/3] Training Detector (Isolation Forest & Binary Classifier)...")
-    X_all = df[feature_cols].values
-    y_leak = df['is_leak'].values
+    X_all = df[feature_cols].to_numpy(dtype=np.float64)
+    y_leak = df['is_leak'].to_numpy(dtype=np.int64)
 
     # Isolation Forest for unsupervised anomaly detection
     # Train on all with expected contamination = fraction of leaks
@@ -269,8 +269,8 @@ def train_models(df: pd.DataFrame, sensor_list: List[str], baseline_pressures: D
     # 2. Localizer Model (RandomForestClassifier on leak scenarios)
     print("\n[2/3] Training Localizer (RandomForestClassifier for Top-3 Suspect Nodes)...")
     leak_df = df[df['is_leak'] == 1].copy()
-    X_leak = leak_df[feature_cols].values
-    y_node = leak_df['target_node'].values
+    X_leak = leak_df[feature_cols].to_numpy(dtype=np.float64)
+    y_node = leak_df['target_node'].to_numpy(dtype=str)
 
     localizer = RandomForestClassifier(
         n_estimators=200,
