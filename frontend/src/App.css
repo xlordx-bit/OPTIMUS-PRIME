@@ -355,7 +355,7 @@
 .metric-card,
 .panel {
   border: 1px solid #23414C;
-  border-radius: 4px;
+  border-radius: 8px;
   background: #102733;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
@@ -366,6 +366,8 @@
 }
 
 .metric-card {
+  --metric-accent: #00E5C3;
+  --metric-highlight: #b6fff1;
   min-height: 124px;
   padding: 12px 14px 11px;
   box-sizing: border-box;
@@ -374,44 +376,115 @@
   justify-content: space-between;
   position: relative;
   overflow: hidden;
+  isolation: isolate;
+  border-color: rgba(35, 65, 76, 0.65);
+  background: transparent;
+  box-shadow: none;
   cursor: pointer;
   user-select: none;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.metric-card:hover {
-  border-color: #00E5C3;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 16px rgba(0, 229, 195, 0.18);
+@property --metric-border-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.metric-card::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--metric-border-angle),
+    transparent 0deg 286deg,
+    var(--metric-accent) 316deg,
+    var(--metric-highlight) 330deg,
+    var(--metric-accent) 340deg,
+    transparent 360deg
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  content: "";
+  opacity: 0;
+  contain: paint;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.metric-card:hover,
+.metric-card:focus-visible {
+  transform: translateY(-4px) scale(1.015);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.38);
+}
+
+.metric-card:hover::after,
+.metric-card:focus-visible::after {
+  opacity: 1;
+  animation: metric-border-spin 2.4s linear infinite;
+}
+
+@keyframes metric-border-spin {
+  from {
+    --metric-border-angle: 0deg;
+  }
+
+  to {
+    --metric-border-angle: 1turn;
+  }
 }
 
 .metric-card:active {
-  transform: translateY(0);
+  transform: translateY(-1px) scale(1.005);
 }
 
 .metric-card:focus-visible {
-  outline: 2px solid #00E5C3;
+  outline: 2px solid #A3BAC4;
   outline-offset: 2px;
 }
 
-/* Restrained Colored Radial Gradients for Semantic Identities (Section 4) */
+/* Semantic accent colors are revealed in each card's hover gradient. */
 .metric-card--blue {
-  background: radial-gradient(circle at 92% 8%, rgba(57, 141, 255, 0.08) 0%, transparent 60%), #102733;
+  --metric-accent: #00E5C3;
 }
 
 .metric-card--coral {
-  background: radial-gradient(circle at 92% 8%, rgba(255, 83, 100, 0.08) 0%, transparent 60%), #102733;
+  --metric-accent: #00E5C3;
 }
 
 .metric-card--aqua {
-  background: radial-gradient(circle at 92% 8%, rgba(0, 229, 195, 0.08) 0%, transparent 60%), #102733;
+  --metric-accent: #00E5C3;
 }
 
 .metric-card--purple {
-  background: radial-gradient(circle at 92% 8%, rgba(167, 139, 250, 0.08) 0%, transparent 60%), #102733;
+  --metric-accent: #00E5C3;
 }
 
 .metric-card--amber {
-  background: radial-gradient(circle at 92% 8%, rgba(255, 181, 71, 0.08) 0%, transparent 60%), #102733;
+  --metric-accent: #FFB547;
+  --metric-highlight: #fff1a8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-card,
+  .metric-card::after {
+    transition-duration: 0.01ms;
+  }
+
+  .metric-card:hover,
+  .metric-card:focus-visible {
+    transform: none;
+  }
+
+  .metric-card:hover::after,
+  .metric-card:focus-visible::after {
+    animation: none;
+    --metric-border-angle: 40deg;
+  }
 }
 
 .metric-card-top {
@@ -1586,8 +1659,8 @@ tbody tr:last-child td {
 
 @media (min-width: 1500px) {
   .dashboard {
-    padding-right: 0;
-    padding-left: 0;
+    padding-right: 24px;
+    padding-left: 24px;
   }
 }
 

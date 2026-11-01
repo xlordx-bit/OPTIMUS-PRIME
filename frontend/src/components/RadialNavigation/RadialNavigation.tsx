@@ -509,7 +509,7 @@ export const RadialTriggerButton: React.FC<{
       </span>
       <span className="radial-trigger-title">COMMAND MENU</span>
       <kbd className="radial-trigger-kbd">TAB</kbd>
-      <span className="radial-trigger-sep">/</span>
+      <span className="radial-trigger-sep"></span>
       <span className="radial-trigger-current">{currentConfig.label}</span>
       {totalAlerts > 0 && (
         <span className="radial-trigger-alert-badge">{totalAlerts}</span>

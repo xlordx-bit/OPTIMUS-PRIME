@@ -49,9 +49,9 @@ export interface RadialSectorConfig {
 export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
   {
     id: 'overview',
-    label: '3D Operations',
+    label: '',
     title: '3D Digital Twin Operations',
-    subtitle: 'SPATIAL TELEMETRY & NETWORK TOPOLOGY',
+    subtitle: '',
     description:
       'Real-time 3D network twin, pressure gradients, elevation profiles, sensor placement, and interactive valve controls.',
     iconName: 'cube',
@@ -62,7 +62,7 @@ export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
     id: 'response_planner',
     label: 'Response Planner',
     title: 'Automated Response Planner',
-    subtitle: 'VALVE-CUT PRIORITISATION & ISOLATION',
+    subtitle: '',
     description:
       'Calculates minimum boundary isolation valves, customers cut off, and emergency dispatch sequence during active events.',
     iconName: 'clipboard',
@@ -73,7 +73,7 @@ export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
     id: 'water_quality',
     label: 'Water Quality',
     title: 'Water Quality & Contaminant Tracking',
-    subtitle: 'CHEMICAL DISPERSION & CHLORINE RESIDUAL',
+    subtitle: '',
     description:
       'Continuous contaminant plume propagation simulation, water safety compliance index, and automatic boil-water advisory zones.',
     iconName: 'drop',
@@ -84,7 +84,7 @@ export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
     id: 'sewer_flood',
     label: 'Sewer & Flood',
     title: 'Sewer Overflow & Urban Flood Warning',
-    subtitle: 'MANHOLE SURCHARGE & STORMWATER RUNOFF',
+    subtitle: '',
     description:
       'Surge prediction across urban manholes, stormwater runoff simulation, and early flood mitigation protocols.',
     iconName: 'activity',
@@ -95,7 +95,7 @@ export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
     id: 'monitoring',
     label: 'Pressure Monitoring',
     title: 'Real-Time Pressure Monitoring',
-    subtitle: 'TRANSIENT TELEMETRY & ZONE METRICS',
+    subtitle: '',
     description:
       'Millisecond-level hydraulic head and pressure monitoring, transient surge analysis, and live multi-sensor pressure drop telemetry.',
     iconName: 'gauge',
@@ -106,7 +106,7 @@ export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
     id: 'whatif',
     label: 'What-If Engine',
     title: 'What-If Valve & Leak Simulator',
-    subtitle: 'HYDRAULIC SANDBOX & SCENARIO IMPACT',
+    subtitle: '',
     description:
       'Sandbox hydraulic scenario modeling to forecast network pressure head changes, customer impact, and leak reduction before field execution.',
     iconName: 'zap',
@@ -117,7 +117,7 @@ export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
     id: 'workorders',
     label: 'Work Orders',
     title: 'Work Order Management',
-    subtitle: 'FIELD CREW DISPATCH & TRACKING',
+    subtitle: "",
     description:
       'Create and track prioritized work orders based on sensor alerts, pipe conditions, and service impact.',
     iconName: 'wrench',
@@ -128,7 +128,7 @@ export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
     id: 'valvesim',
     label: 'Valve Simulation',
     title: 'Interactive Valve Network Simulation',
-    subtitle: 'PRESSURE REDUCING & GATE VALVE CONTROLS',
+    subtitle: '',
     description:
       'Live EPANET-driven hydraulic simulation with dynamic valve throttle adjustments, flow conservation, and headloss calculation.',
     iconName: 'valve',
@@ -139,7 +139,7 @@ export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
     id: 'diagnostics',
     label: 'Leak Diagnostics',
     title: 'Network Leak Diagnostics',
-    subtitle: 'LEAK DETECTION & SOURCE RANKING',
+    subtitle: '',
     description:
       'Review pressure and flow readings to identify likely leak locations, estimate water loss, and compare source candidates.',
     iconName: 'scan',
@@ -150,7 +150,7 @@ export const NAVIGATION_SECTORS: RadialSectorConfig[] = [
     id: 'agent',
     label: 'Operations Support',
     title: 'Operations Decision Support',
-    subtitle: 'INCIDENT REVIEW & RESPONSE GUIDANCE',
+    subtitle: '',
     description:
       'Review network incidents, consult diagnostic results, and prepare containment options for operator review.',
     iconName: 'activity',

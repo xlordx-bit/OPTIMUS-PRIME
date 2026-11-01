@@ -1546,7 +1546,7 @@ function App() {
         />
 
         {/* Topbar Right */}
-        <div className="topbar-right">
+        {/* <div className="topbar-right">
           <button
             type="button"
             className="fullscreen-topbar-btn"
@@ -1573,7 +1573,7 @@ function App() {
           >
             <span className="connection-dot" /> {online ? 'TWIN ONLINE (8000)' : 'API RECONNECTING'}
           </button>
-        </div>
+        </div> */}
       </header>
 
       {/* Public Health & Flood Advisory Banners */}
