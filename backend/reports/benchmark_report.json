@@ -1,0 +1,464 @@
+{
+  "timestamp_iso": "2026-10-31T23:47:24Z",
+  "dataset_split": {
+    "total_scenarios": 550,
+    "train_scenarios": 327,
+    "val_scenarios": 107,
+    "test_scenarios": 116,
+    "scenario_isolation_verified": true
+  },
+  "depth_sweep": {
+    "detector": [
+      {
+        "depth": 4,
+        "val_accuracy": 0.7850467289719626,
+        "val_log_loss": 0.36054891223337504
+      },
+      {
+        "depth": 6,
+        "val_accuracy": 0.8317757009345794,
+        "val_log_loss": 0.3355297970901898
+      },
+      {
+        "depth": 8,
+        "val_accuracy": 0.8317757009345794,
+        "val_log_loss": 0.33703864972990916
+      },
+      {
+        "depth": 10,
+        "val_accuracy": 0.8130841121495327,
+        "val_log_loss": 0.33576804137386956
+      },
+      {
+        "depth": 12,
+        "val_accuracy": 0.8130841121495327,
+        "val_log_loss": 0.33915887193174366
+      },
+      {
+        "depth": 16,
+        "val_accuracy": 0.8411214953271028,
+        "val_log_loss": 0.3367853700285709
+      }
+    ],
+    "localizer": [
+      {
+        "depth": 4,
+        "val_top1_acc": 0.09090909090909091,
+        "val_top3_acc": 0.2077922077922078
+      },
+      {
+        "depth": 6,
+        "val_top1_acc": 0.06493506493506493,
+        "val_top3_acc": 0.2727272727272727
+      },
+      {
+        "depth": 8,
+        "val_top1_acc": 0.1038961038961039,
+        "val_top3_acc": 0.2597402597402597
+      },
+      {
+        "depth": 10,
+        "val_top1_acc": 0.1038961038961039,
+        "val_top3_acc": 0.2857142857142857
+      },
+      {
+        "depth": 12,
+        "val_top1_acc": 0.06493506493506493,
+        "val_top3_acc": 0.2597402597402597
+      },
+      {
+        "depth": 16,
+        "val_top1_acc": 0.12987012987012986,
+        "val_top3_acc": 0.2987012987012987
+      }
+    ],
+    "sizer": [
+      {
+        "depth": 4,
+        "val_r2_score": 0.43537877924372625,
+        "val_mae_lph": 97432.60048191217
+      },
+      {
+        "depth": 6,
+        "val_r2_score": 0.41633871109225595,
+        "val_mae_lph": 96789.67388440185
+      },
+      {
+        "depth": 8,
+        "val_r2_score": 0.41054479068188643,
+        "val_mae_lph": 96298.91219502369
+      },
+      {
+        "depth": 10,
+        "val_r2_score": 0.38583506681527024,
+        "val_mae_lph": 97733.68838518682
+      },
+      {
+        "depth": 12,
+        "val_r2_score": 0.40900530250224987,
+        "val_mae_lph": 94906.31401919576
+      },
+      {
+        "depth": 16,
+        "val_r2_score": 0.4065524810482637,
+        "val_mae_lph": 95414.44877576857
+      }
+    ],
+    "optimal_depths": {
+      "detector": 16,
+      "localizer": 16,
+      "sizer": 4
+    }
+  },
+  "calibration": {
+    "brier_score_before": 0.08602,
+    "brier_score_after": 0.08393,
+    "brier_reduction_pct": 2.44,
+    "log_loss_before": 0.27495,
+    "log_loss_after": 0.27207,
+    "log_loss_reduction_pct": 1.05
+  },
+  "soft_fusion": {
+    "fusion_parameters": {
+      "fusion_weights": {
+        "w_rf": 0.76163,
+        "w_iso": 0.01724,
+        "w_phys": 0.77932,
+        "intercept": -0.30179
+      },
+      "iso_calibrator": {
+        "intercept": 1.00455,
+        "coef": -2.85676
+      },
+      "phys_calibrator": {
+        "intercept": -1.58101,
+        "coef": 0.99494,
+        "noise_std_meters": 0.5
+      },
+      "alert_threshold": 0.5
+    },
+    "test_evaluation": {
+      "test_fused_accuracy": 0.8534,
+      "test_fused_brier_score": 0.0953,
+      "test_fused_log_loss": 0.2947,
+      "mean_fused_prob_leak": 0.879,
+      "mean_fused_prob_noleak": 0.3495
+    }
+  },
+  "localizer_clean_evaluation": {
+    "val_top1_accuracy": 0.0909,
+    "val_top3_accuracy": 0.3247,
+    "test_top1_accuracy": 0.1163,
+    "test_top3_accuracy": 0.3256,
+    "scenario_distribution_summary": {
+      "total_distinct_nodes": 92,
+      "min_scenarios_per_node": 1,
+      "max_scenarios_per_node": 9,
+      "mean_scenarios_per_node": 4.35,
+      "median_scenarios_per_node": 4.0,
+      "nodes_with_1_scenario": 10,
+      "nodes_with_2_scenarios": 9,
+      "nodes_with_3_or_more_scenarios": 73
+    },
+    "scenarios_per_node": {
+      "147": 9,
+      "263": 8,
+      "153": 8,
+      "167": 8,
+      "159": 7,
+      "271": 7,
+      "143": 7,
+      "257": 7,
+      "141": 7,
+      "204": 7,
+      "184": 7,
+      "193": 7,
+      "217": 7,
+      "255": 7,
+      "61": 7,
+      "225": 7,
+      "149": 7,
+      "121": 7,
+      "189": 6,
+      "199": 6,
+      "239": 6,
+      "164": 6,
+      "251": 6,
+      "219": 6,
+      "166": 6,
+      "207": 6,
+      "109": 6,
+      "10": 6,
+      "60": 5,
+      "101": 5,
+      "195": 5,
+      "215": 5,
+      "229": 5,
+      "120": 5,
+      "115": 5,
+      "35": 5,
+      "139": 5,
+      "173": 5,
+      "163": 5,
+      "209": 5,
+      "50": 5,
+      "105": 5,
+      "103": 5,
+      "171": 4,
+      "191": 4,
+      "117": 4,
+      "203": 4,
+      "125": 4,
+      "261": 4,
+      "107": 4,
+      "241": 4,
+      "15": 4,
+      "243": 4,
+      "111": 4,
+      "259": 4,
+      "145": 4,
+      "213": 4,
+      "113": 4,
+      "211": 4,
+      "177": 3,
+      "237": 3,
+      "119": 3,
+      "181": 3,
+      "201": 3,
+      "275": 3,
+      "269": 3,
+      "183": 3,
+      "253": 3,
+      "123": 3,
+      "273": 3,
+      "20": 3,
+      "231": 3,
+      "601": 3,
+      "205": 2,
+      "208": 2,
+      "187": 2,
+      "197": 2,
+      "157": 2,
+      "267": 2,
+      "169": 2,
+      "40": 2,
+      "185": 2,
+      "206": 1,
+      "129": 1,
+      "179": 1,
+      "151": 1,
+      "265": 1,
+      "131": 1,
+      "161": 1,
+      "249": 1,
+      "127": 1,
+      "247": 1
+    }
+  },
+  "sizer_evaluation": {
+    "test_r2_score": 0.6644,
+    "test_mae_lph": 76089.8
+  },
+  "sensor_pruning_curve": [
+    {
+      "num_sensors": 12,
+      "active_sensors": [
+        "217",
+        "123",
+        "247",
+        "149",
+        "105",
+        "206",
+        "15",
+        "117",
+        "181",
+        "195",
+        "129",
+        "10"
+      ],
+      "val_accuracy": 0.8037,
+      "test_accuracy": 0.8534,
+      "retained_importance_pct": 100.0
+    },
+    {
+      "num_sensors": 11,
+      "active_sensors": [
+        "217",
+        "123",
+        "247",
+        "149",
+        "105",
+        "206",
+        "15",
+        "117",
+        "181",
+        "195",
+        "129"
+      ],
+      "val_accuracy": 0.8224,
+      "test_accuracy": 0.8621,
+      "retained_importance_pct": 96.78
+    },
+    {
+      "num_sensors": 10,
+      "active_sensors": [
+        "217",
+        "123",
+        "247",
+        "149",
+        "105",
+        "206",
+        "15",
+        "117",
+        "181",
+        "195"
+      ],
+      "val_accuracy": 0.8131,
+      "test_accuracy": 0.8621,
+      "retained_importance_pct": 92.38
+    },
+    {
+      "num_sensors": 9,
+      "active_sensors": [
+        "217",
+        "123",
+        "247",
+        "149",
+        "105",
+        "206",
+        "15",
+        "117",
+        "181"
+      ],
+      "val_accuracy": 0.8598,
+      "test_accuracy": 0.8707,
+      "retained_importance_pct": 87.86
+    },
+    {
+      "num_sensors": 8,
+      "active_sensors": [
+        "217",
+        "123",
+        "247",
+        "149",
+        "105",
+        "206",
+        "15",
+        "117"
+      ],
+      "val_accuracy": 0.8318,
+      "test_accuracy": 0.8621,
+      "retained_importance_pct": 82.49
+    },
+    {
+      "num_sensors": 7,
+      "active_sensors": [
+        "217",
+        "123",
+        "247",
+        "149",
+        "105",
+        "206",
+        "15"
+      ],
+      "val_accuracy": 0.8505,
+      "test_accuracy": 0.8707,
+      "retained_importance_pct": 76.61
+    },
+    {
+      "num_sensors": 6,
+      "active_sensors": [
+        "217",
+        "123",
+        "247",
+        "149",
+        "105",
+        "206"
+      ],
+      "val_accuracy": 0.8411,
+      "test_accuracy": 0.8879,
+      "retained_importance_pct": 68.46
+    },
+    {
+      "num_sensors": 5,
+      "active_sensors": [
+        "217",
+        "123",
+        "247",
+        "149",
+        "105"
+      ],
+      "val_accuracy": 0.8411,
+      "test_accuracy": 0.8879,
+      "retained_importance_pct": 58.58
+    },
+    {
+      "num_sensors": 4,
+      "active_sensors": [
+        "217",
+        "123",
+        "247",
+        "149"
+      ],
+      "val_accuracy": 0.8131,
+      "test_accuracy": 0.8707,
+      "retained_importance_pct": 48.52
+    },
+    {
+      "num_sensors": 3,
+      "active_sensors": [
+        "217",
+        "123",
+        "247"
+      ],
+      "val_accuracy": 0.729,
+      "test_accuracy": 0.7414,
+      "retained_importance_pct": 38.0
+    },
+    {
+      "num_sensors": 2,
+      "active_sensors": [
+        "217",
+        "123"
+      ],
+      "val_accuracy": 0.7477,
+      "test_accuracy": 0.75,
+      "retained_importance_pct": 27.31
+    },
+    {
+      "num_sensors": 1,
+      "active_sensors": [
+        "217"
+      ],
+      "val_accuracy": 0.6822,
+      "test_accuracy": 0.7759,
+      "retained_importance_pct": 14.37
+    }
+  ],
+  "false_alarm_rate_analysis": {
+    "noise_0.2m": {
+      "noise_std_meters": 0.2,
+      "samples_tested": 1000,
+      "far_threshold_0_5": 0.009,
+      "far_threshold_0_6": 0.003,
+      "far_threshold_0_7": 0.001,
+      "mean_fused_probability": 0.1439
+    },
+    "noise_0.5m": {
+      "noise_std_meters": 0.5,
+      "samples_tested": 1000,
+      "far_threshold_0_5": 0.261,
+      "far_threshold_0_6": 0.174,
+      "far_threshold_0_7": 0.094,
+      "mean_fused_probability": 0.3557
+    },
+    "noise_1.0m": {
+      "noise_std_meters": 1.0,
+      "samples_tested": 1000,
+      "far_threshold_0_5": 0.617,
+      "far_threshold_0_6": 0.47,
+      "far_threshold_0_7": 0.306,
+      "mean_fused_probability": 0.5592
+    }
+  }
+}

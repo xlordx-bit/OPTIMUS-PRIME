@@ -51,22 +51,26 @@ class DigitalTwinState:
         self.current_node_pressures: Dict[str, float] = dict(self.engine.baseline_node_pressures)
         self.current_sensor_noise: Dict[str, float] = {s: 0.0 for s in SENSOR_NODES}
 
-        # ML Models and Metadata
+        # ML Models, Fusion Parameters, and Config
         self.detector_iso = None
         self.detector_clf = None
         self.localizer_clf = None
         self.sizer_reg = None
         self.model_metadata = None
+        self.fusion_params = None
+        self.alert_threshold: float = 0.5   # Configurable alert threshold
+        self.noise_std_meters: float = 0.5  # Noise scaling factor for physics evidence
         self._load_ml_models()
 
     def _load_ml_models(self):
-        """Loads serialized scikit-learn models from backend/models/."""
+        """Loads serialized scikit-learn models and fusion configuration from backend/models/."""
         try:
             iso_path = os.path.join(MODELS_DIR, "detector_iso.joblib")
             clf_path = os.path.join(MODELS_DIR, "detector_clf.joblib")
             loc_path = os.path.join(MODELS_DIR, "localizer_clf.joblib")
             sz_path = os.path.join(MODELS_DIR, "sizer_reg.joblib")
             meta_path = os.path.join(MODELS_DIR, "metadata.json")
+            fusion_path = os.path.join(MODELS_DIR, "fusion_params.json")
 
             if os.path.exists(iso_path):
                 self.detector_iso = joblib.load(iso_path)
@@ -79,8 +83,15 @@ class DigitalTwinState:
             if os.path.exists(meta_path):
                 with open(meta_path, "r") as f:
                     self.model_metadata = json.load(f)
+            if os.path.exists(fusion_path):
+                with open(fusion_path, "r") as f:
+                    self.fusion_params = json.load(f)
+                    if "alert_threshold" in self.fusion_params:
+                        self.alert_threshold = float(self.fusion_params["alert_threshold"])
+                    if "phys_calibrator" in self.fusion_params and "noise_std_meters" in self.fusion_params["phys_calibrator"]:
+                        self.noise_std_meters = float(self.fusion_params["phys_calibrator"]["noise_std_meters"])
 
-            print(">>> Successfully loaded trained ML models into memory.")
+            print(">>> Successfully loaded trained ML models and soft fusion parameters into memory.")
         except Exception as e:
             print(f"Warning: Could not load ML models ({e}). Heuristics will be used until models are ready.")
 
@@ -230,7 +241,7 @@ class DigitalTwinState:
         max_sensor_drop = max(features) if features else 0.0
 
         leak_detected = False
-        anomaly_score = 0.5
+        anomaly_score = 0.0
         confidence = 0.5
         est_lph = 0.0
         est_area = 0.0
@@ -240,29 +251,58 @@ class DigitalTwinState:
         static_net = self.engine.get_static_network()
         node_lookup = {n.id: n for n in static_net.nodes}
 
-        # 1. Detection Phase
-        if self.detector_clf is not None:
-            # Calibrated classifier probability for class 1 (leak)
-            leak_prob = float(self.detector_clf.predict_proba(X)[0][1])
-            iso_raw = float(self.detector_iso.decision_function(X)[0]) if self.detector_iso else 0.0
+        # 1. Detection Phase with Soft Fusion in Log-Odds Space
+        iso_raw = 0.0
+        if self.detector_iso is not None:
+            iso_raw = float(self.detector_iso.decision_function(X)[0])
 
-            # Anomaly is confirmed if classifier confidence > 0.5 or max pressure drop exceeds 1.0m
-            if leak_prob >= 0.5 or max_sensor_drop >= 1.0:
-                leak_detected = True
-                confidence = max(leak_prob, 0.75)
-                anomaly_score = -abs(iso_raw) - 0.2
-            else:
-                leak_detected = False
-                confidence = 1.0 - leak_prob
-                anomaly_score = abs(iso_raw)
+        fused_prob = 0.5
+        if self.detector_clf is not None:
+            # 1a. Calibrated Classifier probability
+            p_rf = float(self.detector_clf.predict_proba(X)[0][1])
+
+            # 1b. Convert Isolation Forest score into anomaly probability via calibrated scaling
+            iso_b = float(self.fusion_params["iso_calibrator"]["intercept"]) if self.fusion_params else 1.0395
+            iso_w = float(self.fusion_params["iso_calibrator"]["coef"]) if self.fusion_params else -4.2459
+            p_iso = float(1.0 / (1.0 + np.exp(-(iso_b + iso_w * iso_raw))))
+
+            # 1c. Convert Physics evidence into probability (logistic function of max dP scaled by noise level)
+            phys_b = float(self.fusion_params["phys_calibrator"]["intercept"]) if self.fusion_params else -1.6791
+            phys_w = float(self.fusion_params["phys_calibrator"]["coef"]) if self.fusion_params else 1.0300
+            z_phys = float(max_sensor_drop / max(0.01, self.noise_std_meters))
+            p_phys = float(1.0 / (1.0 + np.exp(-(phys_b + phys_w * z_phys))))
+
+            # 1d. Combine all three in log-odds space with learned weights
+            eps = 1e-4
+            clip_rf = max(eps, min(1.0 - eps, p_rf))
+            clip_iso = max(eps, min(1.0 - eps, p_iso))
+            clip_phys = max(eps, min(1.0 - eps, p_phys))
+
+            logit_rf = float(np.log(clip_rf / (1.0 - clip_rf)))
+            logit_iso = float(np.log(clip_iso / (1.0 - clip_iso)))
+            logit_phys = float(np.log(clip_phys / (1.0 - clip_phys)))
+
+            w = self.fusion_params["fusion_weights"] if self.fusion_params else {
+                "w_rf": 0.7616, "w_iso": 0.0172, "w_phys": 0.7793, "intercept": -0.3018
+            }
+            fused_logit = w["intercept"] + w["w_rf"] * logit_rf + w["w_iso"] * logit_iso + w["w_phys"] * logit_phys
+            fused_prob = float(1.0 / (1.0 + np.exp(-fused_logit)))
+
+            # Only threshold is the final alert level kept in config
+            leak_detected = fused_prob >= self.alert_threshold
+            # Show actual fused probability (no confidence floor) and actual Isolation Forest score (no adjustment)
+            confidence = fused_prob
+            anomaly_score = iso_raw
         else:
             # Fallback heuristic if models are not present
-            leak_detected = max_sensor_drop >= 0.9
-            confidence = 0.85 if leak_detected else 0.90
-            anomaly_score = -0.7 if leak_detected else 0.4
+            z_phys = max_sensor_drop / max(0.01, self.noise_std_meters)
+            fused_prob = float(1.0 / (1.0 + np.exp(-(z_phys - 2.0))))
+            leak_detected = fused_prob >= self.alert_threshold
+            confidence = fused_prob
+            anomaly_score = -max_sensor_drop
 
-        # 2. Localization Phase (if leak detected)
-        if leak_detected and self.localizer_clf is not None:
+        # 2. Localization Phase (Runs on EVERY reading with no gating)
+        if self.localizer_clf is not None:
             probs = self.localizer_clf.predict_proba(X)[0]
             classes = self.localizer_clf.classes_
 
@@ -285,21 +325,15 @@ class DigitalTwinState:
                     )
                 )
 
-        # 3. Sizing Phase (if leak detected)
-        if leak_detected:
-            if self.sizer_reg is not None:
-                est_lph = max(0.0, float(self.sizer_reg.predict(X)[0]))
-            else:
-                # Fallback estimation based on max pressure drop
-                est_lph = max(0.0, float(max_sensor_drop * 45000.0))
-
-            # Approximation of orifice area (assuming discharge coeff 0.75 and ~35m head)
-            est_area = round(est_lph / (3.6e6 * 0.75 * np.sqrt(2 * 9.81 * 35.0)), 6)
+        # 3. Sizing Phase (Runs on EVERY reading with no gating)
+        if self.sizer_reg is not None:
+            est_lph = max(0.0, float(self.sizer_reg.predict(X)[0]))
         else:
-            est_lph = 0.0
-            est_area = 0.0
+            est_lph = max(0.0, float(max_sensor_drop * 45000.0))
 
-        # 4. Generate Work Order Template if leak detected
+        est_area = round(est_lph / (3.6e6 * 0.75 * np.sqrt(2 * 9.81 * 35.0)), 6) if est_lph > 0 else 0.0
+
+        # 4. Generate Work Order Template (Only if alert threshold is triggered)
         if leak_detected and top_suspects:
             primary_node = top_suspects[0].node_id
             candidates = [s.node_id for s in top_suspects]
@@ -320,9 +354,9 @@ class DigitalTwinState:
 
         return DetectResponse(
             leak_detected=leak_detected,
-            detector_model="IsolationForest + Calibrated RandomForest",
-            anomaly_score=round(anomaly_score, 3),
-            confidence=round(confidence, 3),
+            detector_model="Soft Fusion (Calibrated RF + IsoForest + Physics Evidence)",
+            anomaly_score=round(anomaly_score, 4),
+            confidence=round(confidence, 4),
             estimated_leak_rate_lph=round(est_lph, 1),
             estimated_leak_area_m2=est_area,
             top_suspects=top_suspects,

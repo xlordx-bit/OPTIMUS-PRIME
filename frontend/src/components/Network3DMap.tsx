@@ -197,7 +197,6 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
 
   // Map state
   const [mapLoaded, setMapLoaded] = useState(false)
-  const [mapError, setMapError] = useState<string | null>(null)
   const [is3DMode, setIs3DMode] = useState(true)
   const [isOrbiting, setIsOrbiting] = useState(false)
 
@@ -437,7 +436,6 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
 
     map.on('load', () => {
       setMapLoaded(true)
-      setMapError(null)
 
       map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right')
 
@@ -493,11 +491,8 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
             labelLayer?.id
           )
         } catch (error) {
-          console.error('Unable to add 3D building layer:', error)
-          setMapError('3D building layer could not be added.')
+          console.warn('Unable to add 3D building layer:', error)
         }
-      } else {
-        setMapError('3D building data is unavailable in the selected map style.')
       }
 
       // Add Realistic 3D Terrain Elevation if MapTiler key is active
@@ -745,7 +740,7 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
 
     map.on('error', (e: { error?: { message?: string } }) => {
       if (e.error && e.error.message && !e.error.message.includes('404')) {
-        setMapError('3D map loaded with fallback dark style.')
+        console.warn('Map notice:', e.error.message)
       }
     })
 
@@ -1010,26 +1005,7 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
         </div>
       )}
 
-      {/* Floating HUD: Top Header Info */}
-      <div className="map3d-hud map3d-hud--top-left">
-        <div className="hud-badge-strip">
-          <span className="hud-pill hud-pill--cyan">
-            <span className="hud-live-dot" /> 3D WATER NETWORK
-          </span>
-          <span className="hud-pill">EPANET NET3</span>
-          {MAPTILER_KEY ? (
-            <span className="hud-pill hud-pill--maptiler">MAPTILER DARK 3D</span>
-          ) : (
-            <span className="hud-pill hud-pill--carto">DARK MATTER VECTOR</span>
-          )}
-          {mapError && <span className="hud-pill hud-pill--alert">{mapError}</span>}
-          {state?.is_leak_injected && (
-            <span className="hud-pill hud-pill--alert">
-              ACTIVE LEAK AT JUNCTION {state.active_leak?.node_id}
-            </span>
-          )}
-        </div>
-      </div>
+
 
       {/* Floating HUD: Top Right Actions */}
       <div className="map3d-hud map3d-hud--top-right">
@@ -1047,49 +1023,58 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
 
       {/* Floating HUD: Camera 3D Navigation Controls */}
       <div className="map3d-hud map3d-hud--nav-controls">
-        <button type="button" className="nav-ctrl-btn" onClick={handleZoomIn} title="Zoom In">
-          +
-        </button>
-        <button type="button" className="nav-ctrl-btn" onClick={handleZoomOut} title="Zoom Out">
-          −
-        </button>
-        <button
-          type="button"
-          className={`nav-ctrl-btn ${is3DMode ? 'nav-ctrl-btn--active' : ''}`}
-          onClick={handleToggleTilt}
-          title="Toggle 3D Perspective Tilt (60° / 0°)"
-        >
-          {is3DMode ? '3D' : '2D'}
-        </button>
-        <button type="button" className="nav-ctrl-btn" onClick={() => handleRotate(-45)} title="Rotate Left">
-          ↺
-        </button>
-        <button type="button" className="nav-ctrl-btn" onClick={() => handleRotate(45)} title="Rotate Right">
-          ↻
-        </button>
-        <button
-          type="button"
-          className={`nav-ctrl-btn ${isOrbiting ? 'nav-ctrl-btn--active' : ''}`}
-          onClick={toggleOrbit}
-          aria-label="Toggle orbit"
-          title="Toggle Cinematic Orbit Camera"
-        >
-          O
-        </button>
-        <button
-          type="button"
-          className="nav-ctrl-btn"
-          onClick={handleResetCamera}
-          aria-label="Reset camera center"
-          title="Reset Camera Center"
-        >
-          R
-        </button>
+        <div className="nav-ctrl-group">
+          <button type="button" className="nav-ctrl-btn" onClick={handleZoomIn} title="Zoom In">
+            +
+          </button>
+          <button type="button" className="nav-ctrl-btn" onClick={handleZoomOut} title="Zoom Out">
+            −
+          </button>
+          <button
+            type="button"
+            className={`nav-ctrl-btn ${is3DMode ? 'nav-ctrl-btn--active' : ''}`}
+            onClick={handleToggleTilt}
+            title="Toggle 3D Perspective Tilt (60° / 0°)"
+          >
+            {is3DMode ? '3D' : '2D'}
+          </button>
+          <button type="button" className="nav-ctrl-btn" onClick={() => handleRotate(-45)} title="Rotate Left">
+            ↺
+          </button>
+          <button type="button" className="nav-ctrl-btn" onClick={() => handleRotate(45)} title="Rotate Right">
+            ↻
+          </button>
+          <button
+            type="button"
+            className={`nav-ctrl-btn ${isOrbiting ? 'nav-ctrl-btn--active' : ''}`}
+            onClick={toggleOrbit}
+            aria-label="Toggle orbit"
+            title="Toggle Cinematic Orbit Camera"
+          >
+            O
+          </button>
+          <button
+            type="button"
+            className="nav-ctrl-btn"
+            onClick={handleResetCamera}
+            aria-label="Reset camera center"
+            title="Reset Camera Center"
+          >
+            R
+          </button>
+        </div>
       </div>
 
-      {/* Floating HUD: Layer Filters Panel */}
-      <div className={`map3d-hud map3d-hud--layers ${isLayersCollapsed ? 'map3d-hud--collapsed' : ''}`}>
-        <div className="hud-glass-panel">
+      {/* Floating HUD: Left Column (Alert Banner + Layer Filters + Suspects) */}
+      <div className="map3d-hud map3d-hud--left-column">
+        {state?.is_leak_injected && (
+          <span className="hud-pill hud-pill--alert">
+            ACTIVE LEAK AT JUNCTION {state.active_leak?.node_id}
+          </span>
+        )}
+
+        {/* Layer Filters Panel */}
+        <div className={`hud-glass-panel ${isLayersCollapsed ? 'map3d-hud--collapsed' : ''}`}>
           <button
             type="button"
             className="hud-panel-title hud-panel-title--collapsible"
@@ -1206,11 +1191,9 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
             </div>
           )}
         </div>
-      </div>
 
-      {/* Floating HUD: Suspect Quick Navigation */}
-      {detection?.leak_detected && detection.top_suspects.length > 0 && (
-        <div className="map3d-hud map3d-hud--suspects">
+        {/* Floating HUD: Suspect Quick Navigation */}
+        {detection?.leak_detected && detection.top_suspects.length > 0 && (
           <div className="hud-glass-panel">
             <div className="hud-panel-title">
               <span style={{ color: '#f59e0b' }}>TOP-3 LIKELY SOURCE LOCATIONS</span>
@@ -1232,8 +1215,8 @@ export const Network3DMap: React.FC<Network3DMapProps> = ({
               ))}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
