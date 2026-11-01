@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 
 from schemas import (
     NetworkResponse,
+    ModelPerformanceResponse,
     StateResponse,
     InjectLeakRequest,
     InjectLeakResponse,
@@ -80,6 +81,7 @@ async def root() -> Dict[str, Any]:
         "endpoints": {
             "network": "GET /network",
             "state": "GET /state",
+            "model_performance": "GET /model-performance",
             "inject_leak": "POST /inject-leak",
             "detect": "GET /detect",
             "reset": "POST /reset",
@@ -116,6 +118,40 @@ async def get_network() -> NetworkResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve network layout: {str(e)}"
         )
+
+
+# ---------------------------------------------------------------------------
+# GET /model-performance - Held-Out Leak Model Accuracy
+# ---------------------------------------------------------------------------
+@app.get(
+    "/model-performance",
+    response_model=ModelPerformanceResponse,
+    summary="Get Leak Model Benchmark Accuracy",
+    tags=["Digital Twin"],
+    response_description="Held-out test accuracy for leak detection and localization"
+)
+async def get_model_performance() -> ModelPerformanceResponse:
+    """Returns benchmark scores from the metadata for the loaded model."""
+    metadata = digital_twin_state.model_metadata
+    metrics = metadata.get("metrics", {}) if metadata else {}
+    fusion_metrics = metrics.get("fusion", {})
+    localizer_metrics = metrics.get("localizer", {})
+    required_metrics = (
+        fusion_metrics.get("test_fused_accuracy"),
+        localizer_metrics.get("test_top1"),
+        localizer_metrics.get("test_top3"),
+    )
+    if not all(isinstance(value, (int, float)) for value in required_metrics):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Leak model benchmark metrics are unavailable."
+        )
+
+    return ModelPerformanceResponse(
+        leak_detection_accuracy=required_metrics[0],
+        localization_top1_accuracy=required_metrics[1],
+        localization_top3_accuracy=required_metrics[2],
+    )
 
 
 # ---------------------------------------------------------------------------

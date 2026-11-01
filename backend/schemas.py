@@ -95,6 +95,13 @@ class NetworkResponse(BaseModel):
     reservoirs: List[NetworkReservoir] = Field(default_factory=list, description="Source reservoirs in the network")
 
 
+class ModelPerformanceResponse(BaseModel):
+    """Held-out benchmark accuracy for leak detection and localization."""
+    leak_detection_accuracy: float = Field(..., description="Held-out fused leak detection accuracy, from 0 to 1")
+    localization_top1_accuracy: float = Field(..., description="Held-out localizer Top-1 accuracy, from 0 to 1")
+    localization_top3_accuracy: float = Field(..., description="Held-out localizer Top-3 accuracy, from 0 to 1")
+
+
 # ---------------------------------------------------------------------------
 # GET /state Schemas
 # ---------------------------------------------------------------------------
@@ -470,4 +477,3 @@ class SewerStateResponse(BaseModel):
     threatened_water_mains: List[ThreatenedWaterMain]
     summary_verdict: str
     recommended_field_actions: List[str]
-

@@ -344,10 +344,10 @@
   cursor: pointer;
 }
 
-/* 5-Column Industrial SCADA Metric Grid */
+/* 6-Column Industrial SCADA Metric Grid */
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -467,6 +467,35 @@
 .metric-card--amber {
   --metric-accent: #FFB547;
   --metric-highlight: #fff1a8;
+}
+
+.metric-accuracy-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.metric-accuracy-values > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric-accuracy-values strong {
+  color: #F4FAFC;
+  font-family: var(--mono);
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.metric-accuracy-values span {
+  overflow: hidden;
+  color: #A3BAC4;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1682,6 +1711,7 @@ tbody tr:last-child td {
   }
 
   .metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
   }
 

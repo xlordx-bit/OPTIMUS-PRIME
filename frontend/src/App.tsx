@@ -40,6 +40,12 @@ type NetworkResponse = {
   pipes: NetworkPipe[]
 }
 
+type ModelPerformance = {
+  leak_detection_accuracy: number
+  localization_top1_accuracy: number
+  localization_top3_accuracy: number
+}
+
 type Sensor = {
   node_id: string
   current_pressure_m: number
@@ -818,6 +824,7 @@ function App() {
 
   const [network, setNetwork] = useState<NetworkResponse | null>(null)
   const [state, setState] = useState<NetworkState | null>(null)
+  const [modelPerformance, setModelPerformance] = useState<ModelPerformance | null>(null)
   const [detection, setDetection] = useState<Detection | null>(null)
   const [selectedNode, setSelectedNode] = useState('117')
   const [mapFocusRequest, setMapFocusRequest] = useState<MapFocusRequest | null>(null)
@@ -932,6 +939,11 @@ function App() {
         ? current
         : data.nodes.find((node) => node.type === 'junction')?.id ?? '117'
     )
+  }, [])
+
+  const loadModelPerformance = useCallback(async () => {
+    const data = await apiRequest<ModelPerformance>('/model-performance')
+    setModelPerformance(data)
   }, [])
 
   const loadState = useCallback(async () => {
@@ -1105,13 +1117,20 @@ function App() {
   const refreshDashboard = useCallback(async () => {
     setApiError(null)
     try {
-      await Promise.all([loadNetwork(), loadState(), loadValvePlans(), loadContamData(), loadSewerData()])
+      await Promise.all([
+        loadNetwork(),
+        loadModelPerformance(),
+        loadState(),
+        loadValvePlans(),
+        loadContamData(),
+        loadSewerData(),
+      ])
     } catch (error) {
       setApiError(error instanceof Error ? error.message : 'Could not connect to backend.')
     } finally {
       setInitialLoading(false)
     }
-  }, [loadNetwork, loadState, loadValvePlans, loadContamData, loadSewerData])
+  }, [loadNetwork, loadModelPerformance, loadState, loadValvePlans, loadContamData, loadSewerData])
 
   useEffect(() => {
     void refreshDashboard()
@@ -1866,6 +1885,54 @@ function App() {
             </div>
             <div className="metric-foot">
               {totalAlertCount > 0 ? 'Review alerts in response planner ↗' : 'All network zones nominal ↗'}
+            </div>
+          </article>
+
+          {/* 6. Held-Out Leak Detection & Localization Accuracy */}
+          <article
+            className="metric-card metric-card--aqua metric-card--accuracy"
+            role="button"
+            tabIndex={0}
+            onClick={() => setActiveTab('diagnostics')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setActiveTab('diagnostics')
+              }
+            }}
+            title="View leak diagnostics. Accuracy values are from the held-out model test split."
+          >
+            <div className="metric-card-top">
+              <div className="metric-title-group">
+                <span className="metric-icon metric-icon--aqua">
+                  <Icon name="scan" size={14} />
+                </span>
+                <span className="metric-label">Detection &amp; Localization</span>
+              </div>
+              <span className="metric-chip metric-chip--normal">TEST SET</span>
+            </div>
+            <div className="metric-accuracy-values">
+              <div>
+                <strong>
+                  {modelPerformance
+                    ? `${formatNumber(modelPerformance.leak_detection_accuracy * 100, 2)}%`
+                    : '—'}
+                </strong>
+                <span>Leak detection</span>
+              </div>
+              <div>
+                <strong>
+                  {modelPerformance
+                    ? `${formatNumber(modelPerformance.localization_top1_accuracy * 100, 2)}%`
+                    : '—'}
+                </strong>
+                <span>Localization Top-1</span>
+              </div>
+            </div>
+            <div className="metric-foot">
+              Localization Top-3: {modelPerformance
+                ? `${formatNumber(modelPerformance.localization_top3_accuracy * 100, 2)}%`
+                : '—'} · Held-out benchmark
             </div>
           </article>
         </section>

@@ -17,6 +17,18 @@ from main import app
 
 client = TestClient(app)
 
+
+def test_model_performance_reports_held_out_accuracy():
+    response = client.get("/model-performance")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "leak_detection_accuracy": 0.8534,
+        "localization_top1_accuracy": 0.1163,
+        "localization_top3_accuracy": 0.3256,
+    }
+
+
 # Terminal color formatting
 GREEN = "\033[92m"
 RED = "\033[91m"
